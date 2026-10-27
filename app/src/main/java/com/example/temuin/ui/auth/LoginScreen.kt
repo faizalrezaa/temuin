@@ -2,6 +2,8 @@ package com.example.temuin.ui.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -10,6 +12,8 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,26 +30,30 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: AuthViewModel = viewModel()
 ) {
-    val nipNim by viewModel.loginNipNim.collectAsState()
-    val password by viewModel.loginPassword.collectAsState()
-    var passwordVisible by remember { mutableStateOf(false) }
+    val state by viewModel.loginUiState.collectAsStateWithLifecycle()
+    val nipNim = state.identifier
+    val password = state.password
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center // Memastikan seluruh elemen berada tepat di tengah layar
     ) {
         Text(
-            text = "Masuk ke Akun Kampus",
+            text = "Masuk ke Akun Temuin",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Gunakan NIM/NIP dan kata sandi yang telah didaftarkan untuk masuk.",
+            text = "Demo pemeriksaan format NIM/NIP/email UB dan kata sandi. Belum terhubung ke layanan autentikasi.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -65,7 +73,9 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = nipNim,
                     onValueChange = viewModel::updateLoginNipNim,
-                    placeholder = { Text("cth. 2106728910", color = Color.Gray) },
+                    isError = state.identifierError != null,
+                    supportingText = { FormFieldError(state.identifierError) },
+                    placeholder = { Text("cth. 245150200111066", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     singleLine = true
@@ -77,6 +87,8 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = viewModel::updateLoginPassword,
+                    isError = state.passwordError != null,
+                    supportingText = { FormFieldError(state.passwordError) },
                     placeholder = { Text("Masukkan kata sandi", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -96,7 +108,9 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
-                    onClick = onLoginSuccess,
+                    onClick = {
+                        if (viewModel.submitLogin()) onLoginSuccess()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),

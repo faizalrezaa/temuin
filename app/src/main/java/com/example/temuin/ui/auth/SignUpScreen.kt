@@ -14,6 +14,10 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,23 +39,24 @@ fun SignupScreen(
     onSignupSuccess: () -> Unit,
     viewModel: AuthViewModel = viewModel()
 ) {
-    val name by viewModel.signupName.collectAsState()
-    val nim by viewModel.signupNim.collectAsState()
-    val phone by viewModel.signupPhone.collectAsState()
-    val password by viewModel.signupPassword.collectAsState()
-    val confirmPassword by viewModel.signupConfirmPassword.collectAsState()
-    val fakultas by viewModel.signupFakultas.collectAsState()
-
-    var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
-    var isChecked by remember { mutableStateOf(false) }
+    val state by viewModel.signupUiState.collectAsStateWithLifecycle()
+    val name = state.name
+    val nim = state.nim
+    val phone = state.phone
+    val password = state.password
+    val confirmPassword = state.confirmPassword
+    val fakultas = state.fakultas
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var expandedFakultas by remember { mutableStateOf(false) }
-    val listFakultas = listOf("Fakultas Ilmu Komputer", "Fakultas Teknik", "Fakultas Ekonomi", "Fakultas Hukum")
+    val listFakultas = viewModel.fakultasOptions
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -65,7 +70,7 @@ fun SignupScreen(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Lengkapi data sivitas akademika untuk verifikasi\nakun pencarian & pelaporan barang.",
+            text = "Lengkapi formulir untuk demo validasi\ndan pengolahan data akun.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -90,7 +95,7 @@ fun SignupScreen(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Akun mahasiswa memerlukan NIM dan Fakultas yang valid untuk verifikasi kepemilikan barang.",
+                text = "Isi semua kolom sebelum melanjutkan. Isian tetap tersimpan saat layar diputar.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -112,6 +117,8 @@ fun SignupScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = viewModel::updateSignupName,
+                    isError = state.errors.name != null,
+                    supportingText = { FormFieldError(state.errors.name) },
                     placeholder = { Text("cth. Dimas Pratama", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -125,12 +132,15 @@ fun SignupScreen(
                 OutlinedTextField(
                     value = nim,
                     onValueChange = viewModel::updateSignupNim,
-                    placeholder = { Text("cth. 2106728910", color = Color.Gray) },
+                    isError = state.errors.nim != null,
+                    supportingText = { FormFieldError(state.errors.nim) },
+                    placeholder = { Text("cth. 245150200111066", color = Color.Gray) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     singleLine = true
                 )
-                HelperText("Digunakan untuk validasi kartu KTM")
+                HelperText("NIM 15 digit, diperiksa formatnya pada demo ini")
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -144,6 +154,8 @@ fun SignupScreen(
                         value = if (fakultas.isEmpty()) "Pilih Fakultas Anda" else fakultas,
                         onValueChange = {},
                         readOnly = true,
+                        isError = state.errors.fakultas != null,
+                        supportingText = { FormFieldError(state.errors.fakultas) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFakultas) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -176,7 +188,10 @@ fun SignupScreen(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = viewModel::updateSignupPhone,
-                    placeholder = { Text("812-3456-7890", color = Color.Gray) },
+                    isError = state.errors.phone != null,
+                    supportingText = { FormFieldError(state.errors.phone) },
+                    placeholder = { Text("0812-3456-7890", color = Color.Gray) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     singleLine = true
@@ -190,6 +205,8 @@ fun SignupScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = viewModel::updateSignupPassword,
+                    isError = state.errors.password != null,
+                    supportingText = { FormFieldError(state.errors.password) },
                     placeholder = { Text("Minimal 8 karakter", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -214,6 +231,8 @@ fun SignupScreen(
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = viewModel::updateSignupConfirmPassword,
+                    isError = state.errors.confirmPassword != null,
+                    supportingText = { FormFieldError(state.errors.confirmPassword) },
                     placeholder = { Text("Masukkan ulang kata sandi", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -235,8 +254,8 @@ fun SignupScreen(
                 // Checkbox Terms
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
-                        checked = isChecked,
-                        onCheckedChange = { isChecked = it }
+                        checked = state.termsAccepted,
+                        onCheckedChange = viewModel::updateTermsAccepted
                     )
                     Text(
                         text = buildAnnotatedString {
@@ -257,15 +276,26 @@ fun SignupScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                FormFieldError(state.errors.terms)
+                if (state.submitAttempted && state.errors.hasErrors) {
+                    Text(
+                        text = "Periksa isian yang ditandai. Data belum dikirim.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
                 Button(
-                    onClick = onSignupSuccess,
+                    onClick = {
+                        if (viewModel.submitSignup()) onSignupSuccess()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp)
                 ) {
                     Text(
-                        text = "Buat Akun Temuin",
+                        text = "Validasi & Proses Data",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White // Menambahkan warna putih eksplisit
@@ -310,7 +340,7 @@ fun SignupScreen(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Terintegrasi sistem verifikasi identitas kampus terpercaya.",
+                text = "Demo lokal. Data tidak dikirim ke server.",
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.DarkGray
             )
@@ -343,4 +373,15 @@ fun HelperText(text: String, isGreen: Boolean = false) {
         color = if (isGreen) Color(0xFF2E7D32) else Color.Gray,
         modifier = Modifier.padding(top = 4.dp, start = 4.dp)
     )
+}
+
+@Composable
+fun FormFieldError(message: String?) {
+    if (message != null) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
 }
