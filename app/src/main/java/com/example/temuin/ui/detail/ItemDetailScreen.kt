@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material3.*
@@ -37,6 +38,7 @@ import com.example.temuin.ui.theme.*
 fun ItemDetailScreen(
     viewModel: ItemDetailViewModel,
     onBackClick: () -> Unit,
+    onFindMatches: () -> Unit,
 ) {
     val item by viewModel.item.collectAsState()
     val message by viewModel.message.collectAsState()
@@ -64,7 +66,8 @@ fun ItemDetailScreen(
             item = item,
             onBackClick = onBackClick,
             onContactClick = viewModel::contactReporter,
-            onClaimClick = { viewModel.clearClaimError(); showClaimDialog = true }
+            onClaimClick = { viewModel.clearClaimError(); showClaimDialog = true },
+            onFindMatches = onFindMatches
         )
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp))
     }
@@ -140,7 +143,8 @@ fun ItemDetailContent(
     item: Item?,
     onBackClick: () -> Unit,
     onContactClick: () -> Unit,
-    onClaimClick: () -> Unit
+    onClaimClick: () -> Unit,
+    onFindMatches: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -177,50 +181,60 @@ fun ItemDetailContent(
                     color = Color.White,
                     tonalElevation = 8.dp
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (item.status == ItemStatus.DITEMUKAN) {
-                            // Figma: [Hubungi Pelapor] (outline) + [Verifikasi & Klaim] (oranye)
-                            OutlinedButton(
-                                onClick = onContactClick,
-                                modifier = Modifier.weight(1f).height(50.dp),
-                                shape = RoundedCornerShape(50),
-                                border = BorderStroke(1.dp, OrangePrimary),
-                                contentPadding = PaddingValues(horizontal = 8.dp)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Chat, null, tint = OrangePrimary, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Hubungi Pelapor", color = OrangePrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
-                            }
-                            val (claimText, claimEnabled) = when (item.myClaimStatus) {
-                                "PENDING" -> "Klaim Ditinjau" to false
-                                "APPROVED", "COMPLETED" -> "Klaim Disetujui" to false
-                                else -> "Verifikasi & Klaim" to item.canClaim
-                            }
-                            Button(
-                                onClick = onClaimClick,
-                                enabled = claimEnabled,
-                                modifier = Modifier.weight(1f).height(50.dp),
-                                shape = RoundedCornerShape(50),
-                                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
-                                contentPadding = PaddingValues(horizontal = 8.dp)
-                            ) {
-                                Icon(Icons.Default.HowToReg, null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(claimText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
-                            }
-                        } else {
-                            Button(
-                                onClick = onContactClick,
-                                modifier = Modifier.fillMaxWidth().height(50.dp),
-                                shape = RoundedCornerShape(50),
-                                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Chat, null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Hubungi Pelapor", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        OutlinedButton(
+                            onClick = onFindMatches,
+                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, OrangePrimary)
+                        ) {
+                            Icon(Icons.Filled.Search, null, tint = OrangePrimary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Cari Kecocokan", color = OrangePrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (item.status == ItemStatus.DITEMUKAN) {
+                                // Figma: [Hubungi Pelapor] (outline) + [Verifikasi & Klaim] (oranye)
+                                OutlinedButton(
+                                    onClick = onContactClick,
+                                    modifier = Modifier.weight(1f).height(50.dp),
+                                    shape = RoundedCornerShape(50),
+                                    border = BorderStroke(1.dp, OrangePrimary),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, null, tint = OrangePrimary, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Hubungi Pelapor", color = OrangePrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                                }
+                                val (claimText, claimEnabled) = when (item.myClaimStatus) {
+                                    "PENDING" -> "Klaim Ditinjau" to false
+                                    "APPROVED", "COMPLETED" -> "Klaim Disetujui" to false
+                                    else -> "Verifikasi & Klaim" to item.canClaim
+                                }
+                                Button(
+                                    onClick = onClaimClick,
+                                    enabled = claimEnabled,
+                                    modifier = Modifier.weight(1f).height(50.dp),
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.HowToReg, null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(claimText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                                }
+                            } else {
+                                Button(
+                                    onClick = onContactClick,
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Hubungi Pelapor", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                }
                             }
                         }
                     }

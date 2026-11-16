@@ -256,7 +256,12 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 }
                 ItemDetailScreen(
                     viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onFindMatches = {
+                        navController.navigate(
+                            Screen.MatchRecommendation.createRoute(viewModel.itemId)
+                        )
+                    }
                 )
             }
 
