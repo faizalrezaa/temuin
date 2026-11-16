@@ -7,8 +7,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,10 +21,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.temuin.data.local.TokenManager
+import com.example.temuin.data.remote.NetworkModule
 import com.example.temuin.data.source.fake.FakeInboxRepository
 import com.example.temuin.data.source.fake.FakeItemRepository
 import com.example.temuin.data.source.fake.FakeLaporanRepository
 import com.example.temuin.data.source.fake.FakePickupPointRepository
+import com.example.temuin.data.source.remote.RemoteAuthRepository
+import com.example.temuin.ui.auth.AuthViewModel
 import com.example.temuin.ui.auth.LoginScreen
 import com.example.temuin.ui.auth.SignupScreen
 import com.example.temuin.ui.components.AppTopBar
@@ -42,6 +48,19 @@ import com.example.temuin.ui.report.LaporViewModel
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // ── AuthViewModel dibuat sekali dan dishare antara Login & Signup ──────────
+    val context = LocalContext.current
+    val authViewModel: AuthViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val tokenManager = TokenManager(context)
+                val repository = RemoteAuthRepository(NetworkModule.authApiService, tokenManager)
+                return AuthViewModel(repository) as T
+            }
+        }
+    )
 
     val bottomBarRoutes = listOf(
         Screen.Home.route,
@@ -95,7 +114,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Screen.Home.createRoute()) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
-                    }
+                    },
+                    viewModel = authViewModel
                 )
             }
 
@@ -110,7 +130,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Screen.Home.createRoute()) {
                             popUpTo(Screen.Signup.route) { inclusive = true }
                         }
-                    }
+                    },
+                    viewModel = authViewModel
                 )
             }
 
