@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -66,13 +68,14 @@ fun MatchRecommendationScreen(
     modifier: Modifier = Modifier,
     onRetry: () -> Unit = {},
     onManualSearch: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        ScreenHeader()
+        ScreenHeader(onBack = onBack)
 
         when (uiState) {
             MatchUiState.Loading -> CenteredState(Modifier.weight(1f)) {
@@ -100,21 +103,38 @@ fun MatchRecommendationScreen(
 }
 
 @Composable
-private fun ScreenHeader() {
+private fun ScreenHeader(onBack: (() -> Unit)? = null) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
+            .padding(
+                start = if (onBack != null) 8.dp else 20.dp,
+                end = 20.dp,
+                top = if (onBack != null) 12.dp else 20.dp,
+                bottom = 8.dp,
+            ),
     ) {
-        Text(
-            text = "Cari Kecocokan",
-            style = MaterialTheme.typography.titleLarge,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Kandidat laporan yang mungkin cocok dengan laporanmu.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        if (onBack != null) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Kembali",
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(start = if (onBack != null) 12.dp else 0.dp),
+        ) {
+            Text(
+                text = "Cari Kecocokan",
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Kandidat laporan yang mungkin cocok dengan laporanmu.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 
