@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 object NetworkModule {
 
     private const val BASE_URL =
-        "https://remissly-crumbier-michelle.ngrok-free.app/api/v1/"
+        "https://remissly-crumbier-michelle.ngrok-free.dev/api/v1/"
 
     val authApiService: AuthApiService by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
