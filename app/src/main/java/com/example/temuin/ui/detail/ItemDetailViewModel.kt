@@ -28,6 +28,10 @@ class ItemDetailViewModel(
     private val _submitting = MutableStateFlow(false)
     val submitting: StateFlow<Boolean> = _submitting.asStateFlow()
 
+    private val _claimError = MutableStateFlow<String?>(null)
+    val claimError: StateFlow<String?> = _claimError.asStateFlow()
+    fun clearClaimError() { _claimError.value = null }
+
     init { load() }
 
     private fun load() {
@@ -48,7 +52,7 @@ class ItemDetailViewModel(
                     onDone()
                     load() // status tombol ikut berubah
                 }
-                .onFailure { _message.value = it.message }
+                .onFailure { _claimError.value = it.message ?: "Gagal mengirim klaim" }
             _submitting.value = false
         }
     }

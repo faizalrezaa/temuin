@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.*
@@ -51,7 +52,18 @@ fun InboxScreen(viewModel: InboxViewModel) {
     val loadingIds     by viewModel.loadingIds.collectAsState()
     val counts         by viewModel.counts.collectAsState()
     val actionResult   by viewModel.actionResult.collectAsState()
+    val chatLink       by viewModel.chatLink.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(chatLink) {
+        chatLink?.let {
+            runCatching {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(it)))
+            }.onFailure { snackbarHostState.showSnackbar("Tidak dapat membuka WhatsApp") }
+            viewModel.clearChatLink()
+        }
+    }
 
     LaunchedEffect(actionResult) {
         actionResult?.let {
@@ -68,6 +80,7 @@ fun InboxScreen(viewModel: InboxViewModel) {
             loadingIds     = loadingIds,
             onFilterSelect = viewModel::selectFilter,
             onSetujui      = viewModel::setujuiKlaim,
+            onChat         = viewModel::bukaChat,
             onTolak        = viewModel::tolakKlaim
         )
 
@@ -87,6 +100,7 @@ fun InboxContent(
     loadingIds:     Set<String>,
     onFilterSelect: (InboxFilter) -> Unit,
     onSetujui:      (String) -> Unit,
+    onChat:         (String) -> Unit = {},
     onTolak:        (String) -> Unit
 ) {
     Column(
@@ -118,7 +132,7 @@ fun InboxContent(
                                 onTolak    = { onTolak(item.id) }
                             )
                         is InboxItem.StatusLaporan ->
-                            StatusLaporanCard(item = item)
+                            StatusLaporanCard(item = item, onChat = { item.reportId?.let(onChat) })
                     }
                 }
             }
@@ -291,8 +305,9 @@ fun PermintaanKlaimCard(
 
 // ── Status Laporan Card ───────────────────────────────────────────────────────
 @Composable
-fun StatusLaporanCard(item: InboxItem.StatusLaporan) {
+fun StatusLaporanCard(item: InboxItem.StatusLaporan, onChat: () -> Unit = {}) {
     val (badgeBg, badgeText, badgeLabel) = when (item.status) {
+        StatusLaporanType.MENUNGGU_VERIFIKASI -> Triple(BadgeOrangeBg, BadgeOrangeText, "MENUNGGU VERIFIKASI PENEMU")
         StatusLaporanType.DISETUJUI_PENEMU -> Triple(BadgeGreenBg, BadgeGreenText, "DISETUJUI PENEMU • SIAP DIAMBIL")
         StatusLaporanType.KLAIM_DITOLAK    -> Triple(BadgeRedBg,   BadgeRedText,   "KLAIM DITOLAK")
         StatusLaporanType.TITIP_DI_POS     -> Triple(BadgeOrangeBg, BadgeOrangeText, "TITIP DI POS • MENUNGGU KLAIM")
@@ -348,6 +363,20 @@ fun StatusLaporanCard(item: InboxItem.StatusLaporan) {
                     fontSize = 10.sp,
                     color    = TextSecondary.copy(alpha = 0.7f)
                 )
+            }
+        }
+
+        if (item.canChat && item.reportId != null) {
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick  = onChat,
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape    = RoundedCornerShape(50),
+                colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Chat Penemu via WhatsApp", fontWeight = FontWeight.SemiBold)
             }
         }
     }

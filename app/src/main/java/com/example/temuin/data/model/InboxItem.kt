@@ -23,7 +23,10 @@ sealed class InboxItem {
         override val waktu: String,
         val status: StatusLaporanType,
         val pesan: String,
-        val nomorReferensi: String? = null
+        val nomorReferensi: String? = null,
+        val reportId: String? = null,
+        /** Tampilkan tombol "Chat via WhatsApp" (klaim disetujui → boleh hubungi penemu). */
+        val canChat: Boolean = false
     ) : InboxItem()
 }
 
@@ -34,6 +37,7 @@ enum class InboxFilter(val label: String) {
 }
 
 enum class StatusLaporanType {
+    MENUNGGU_VERIFIKASI,
     DISETUJUI_PENEMU,
     KLAIM_DITOLAK,
     TITIP_DI_POS

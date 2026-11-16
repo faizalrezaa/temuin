@@ -69,6 +69,19 @@ class InboxViewModel(private val repository: InboxRepository) : ViewModel() {
 
     fun refresh() = repository.refresh()
 
+    private val _chatLink = MutableStateFlow<String?>(null)
+    val chatLink: StateFlow<String?> = _chatLink.asStateFlow()
+
+    fun bukaChat(reportId: String) {
+        viewModelScope.launch {
+            repository.getChatLink(reportId)
+                .onSuccess { _chatLink.value = it }
+                .onFailure { _actionResult.value = it.message ?: "Kontak penemu tidak tersedia" }
+        }
+    }
+
+    fun clearChatLink() { _chatLink.value = null }
+
     fun clearActionResult() {
         _actionResult.value = null
     }

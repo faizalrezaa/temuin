@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
@@ -40,6 +42,7 @@ fun ItemDetailScreen(
     val message by viewModel.message.collectAsState()
     val contactLink by viewModel.contactLink.collectAsState()
     val submitting by viewModel.submitting.collectAsState()
+    val claimError by viewModel.claimError.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var showClaimDialog by remember { mutableStateOf(false) }
@@ -60,11 +63,8 @@ fun ItemDetailScreen(
         ItemDetailContent(
             item = item,
             onBackClick = onBackClick,
-            onActionClick = {
-                val current = item ?: return@ItemDetailContent
-                if (current.status == ItemStatus.DITEMUKAN) showClaimDialog = true
-                else viewModel.contactReporter()
-            }
+            onContactClick = viewModel::contactReporter,
+            onClaimClick = { viewModel.clearClaimError(); showClaimDialog = true }
         )
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp))
     }
@@ -72,6 +72,7 @@ fun ItemDetailScreen(
     if (showClaimDialog) {
         ClaimDialog(
             submitting = submitting,
+            error = claimError,
             onDismiss = { showClaimDialog = false },
             onSubmit = { answer -> viewModel.submitClaim(answer) { showClaimDialog = false } }
         )
@@ -81,6 +82,7 @@ fun ItemDetailScreen(
 @Composable
 private fun ClaimDialog(
     submitting: Boolean,
+    error: String?,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
 ) {
@@ -101,8 +103,15 @@ private fun ClaimDialog(
                     placeholder = { Text("Contoh: ada stiker kucing di belakang casing") },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("Minimal 10 karakter") }
+                    supportingText = {
+                        val n = answer.trim().length
+                        Text(if (n < 10) "Minimal 10 karakter ($n/10)" else "$n karakter")
+                    }
                 )
+                if (error != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(error, color = Color(0xFFC62828), fontSize = 13.sp)
+                }
             }
         },
         confirmButton = {
@@ -122,7 +131,8 @@ private fun ClaimDialog(
 fun ItemDetailContent(
     item: Item?,
     onBackClick: () -> Unit,
-    onActionClick: () -> Unit
+    onContactClick: () -> Unit,
+    onClaimClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -159,32 +169,51 @@ fun ItemDetailContent(
                     color = Color.White,
                     tonalElevation = 8.dp
                 ) {
-                    Box(modifier = Modifier.padding(16.dp)) {
-                        val (buttonText, enabled) = when {
-                            item.status == ItemStatus.DITEMUKAN && item.myClaimStatus == "PENDING" ->
-                                "Klaim Sedang Ditinjau Penemu" to false
-                            item.status == ItemStatus.DITEMUKAN && item.myClaimStatus == "APPROVED" ->
-                                "Klaim Disetujui • Cek Inbox" to false
-                            item.status == ItemStatus.DITEMUKAN ->
-                                (if (item.canClaim) "Klaim Barang Ini" else "Barang Tidak Dapat Diklaim") to item.canClaim
-                            else ->
-                                (if (item.canContact) "Saya Menemukan Barang Ini" else "Kontak Tidak Tersedia") to item.canContact
-                        }
-                        Button(
-                            onClick = onActionClick,
-                            enabled = enabled,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
-                        ) {
-                            Text(
-                                text = buttonText,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (item.status == ItemStatus.DITEMUKAN) {
+                            // Figma: [Hubungi Pelapor] (outline) + [Verifikasi & Klaim] (oranye)
+                            OutlinedButton(
+                                onClick = onContactClick,
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(50),
+                                border = BorderStroke(1.dp, OrangePrimary),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, null, tint = OrangePrimary, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Hubungi Pelapor", color = OrangePrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                            }
+                            val (claimText, claimEnabled) = when (item.myClaimStatus) {
+                                "PENDING" -> "Klaim Ditinjau" to false
+                                "APPROVED", "COMPLETED" -> "Klaim Disetujui" to false
+                                else -> "Verifikasi & Klaim" to item.canClaim
+                            }
+                            Button(
+                                onClick = onClaimClick,
+                                enabled = claimEnabled,
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.Default.HowToReg, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(claimText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                            }
+                        } else {
+                            Button(
+                                onClick = onContactClick,
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Hubungi Pelapor", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                            }
                         }
                     }
                 }

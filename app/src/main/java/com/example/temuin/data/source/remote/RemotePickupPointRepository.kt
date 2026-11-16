@@ -15,7 +15,7 @@ class RemotePickupPointRepository(private val api: TemuinApi = ApiClient.api) : 
             api.pickupPoints().data.orEmpty()
                 .filter { it.latitude != null && it.longitude != null }
                 .map(ApiMappers::toPickupPoint)
-        }.onFailure { Log.w("RemotePickupRepo", ApiClient.errorMessage(it)) }
+        }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w("RemotePickupRepo", ApiClient.errorMessage(it)) }
             .getOrDefault(emptyList())
         emit(points)
     }

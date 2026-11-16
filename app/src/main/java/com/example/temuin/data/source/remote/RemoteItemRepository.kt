@@ -15,7 +15,7 @@ class RemoteItemRepository(private val api: TemuinApi = ApiClient.api) : ItemRep
     /** Feed laporan aktif (hilang + ditemukan), terbaru dulu. */
     override fun getItems(): Flow<List<Item>> = flow {
         val items = runCatching { api.reports().data.orEmpty().map { ApiMappers.toItem(it) } }
-            .onFailure { Log.w(TAG, "getItems: ${ApiClient.errorMessage(it)}") }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "getItems: ${ApiClient.errorMessage(it)}") }
             .getOrDefault(emptyList())
         emit(items)
     }
@@ -24,14 +24,14 @@ class RemoteItemRepository(private val api: TemuinApi = ApiClient.api) : ItemRep
         val item = runCatching {
             val report = api.report(id).data!!
             ApiMappers.toItem(report)
-        }.onFailure { Log.w(TAG, "getItemById: ${ApiClient.errorMessage(it)}") }.getOrNull()
+        }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "getItemById: ${ApiClient.errorMessage(it)}") }.getOrNull()
         emit(item)
     }
 
     override fun getItemsAtPickupPoint(pointId: String): Flow<List<Item>> = flow {
         val items = runCatching {
             api.pickupPointItems(pointId).data?.items.orEmpty().map { ApiMappers.toItem(it) }
-        }.onFailure { Log.w(TAG, "getItemsAtPickupPoint: ${ApiClient.errorMessage(it)}") }
+        }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "getItemsAtPickupPoint: ${ApiClient.errorMessage(it)}") }
             .getOrDefault(emptyList())
         emit(items)
     }
