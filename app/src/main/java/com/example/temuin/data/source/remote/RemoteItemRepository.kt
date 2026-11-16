@@ -13,8 +13,12 @@ import kotlinx.coroutines.flow.flow
 class RemoteItemRepository(private val api: TemuinApi = ApiClient.api) : ItemRepository {
 
     /** Feed laporan aktif (hilang + ditemukan), terbaru dulu. */
-    override fun getItems(): Flow<List<Item>> = flow {
-        val items = runCatching { api.reports().data.orEmpty().map { ApiMappers.toItem(it) } }
+    override fun getItems(): Flow<List<Item>> = getItems(null, "ACTIVE")
+
+    override fun getItems(category: String?, status: String): Flow<List<Item>> = flow {
+        val items = runCatching {
+            api.reports(category = category, status = status).data.orEmpty().map { ApiMappers.toItem(it) }
+        }
             .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "getItems: ${ApiClient.errorMessage(it)}") }
             .getOrDefault(emptyList())
         emit(items)
@@ -28,9 +32,26 @@ class RemoteItemRepository(private val api: TemuinApi = ApiClient.api) : ItemRep
         emit(item)
     }
 
+    override suspend fun getCategories(): List<Pair<String, String>> =
+        runCatching { api.categories().data.orEmpty().map { it.code to it.label } }
+            .getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; emptyList() }
+
+    /**
+     * Barang di satu fakultas/pos:
+     * 1. sudah dititipkan di pos ini (GET /pickup-points/{id}/items, custody DEPOSITED), dan
+     * 2. laporan "Ditemukan" aktif yang lokasinya di fakultas ini (location_area) atau
+     *    sedang menunggu dititipkan ke pos ini.
+     */
     override fun getItemsAtPickupPoint(pointId: String): Flow<List<Item>> = flow {
         val items = runCatching {
-            api.pickupPointItems(pointId).data?.items.orEmpty().map { ApiMappers.toItem(it) }
+            val summary = api.pickupPointItems(pointId).data
+            val deposited = summary?.items.orEmpty()
+            val building = summary?.pickupPoint?.building
+            val foundHere = api.reports(type = "FOUND").data.orEmpty().filter { r ->
+                r.pickupPoint?.id == pointId ||
+                    (building != null && r.locationArea.equals(building, ignoreCase = true))
+            }
+            (deposited + foundHere).distinctBy { it.id }.map { ApiMappers.toItem(it) }
         }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "getItemsAtPickupPoint: ${ApiClient.errorMessage(it)}") }
             .getOrDefault(emptyList())
         emit(items)

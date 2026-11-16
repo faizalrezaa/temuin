@@ -52,7 +52,34 @@ fun HomeScreen(
     var selectedFilter by remember { mutableStateOf("Semua") }
     var searchQuery by remember { mutableStateOf("") }
 
+    val categoryFilter by viewModel.categoryFilter.collectAsState()
+    val statusFilter by viewModel.statusFilter.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) { viewModel.refresh() }
+
+    val activeFilterLabel = listOfNotNull(
+        categoryFilter?.let { code -> categories.firstOrNull { it.first == code }?.second ?: code },
+        statusFilter.takeIf { it != StatusFilter.AKTIF }?.label
+    ).joinToString(" • ").ifBlank { null }
+
+    if (showFilterSheet) {
+        HomeFilterSheet(
+            categories = categories,
+            selectedCategory = categoryFilter,
+            selectedStatus = statusFilter,
+            onApply = { cat, status ->
+                viewModel.applyFilters(cat, status)
+                showFilterSheet = false
+            },
+            onReset = {
+                viewModel.resetFilters()
+                showFilterSheet = false
+            },
+            onDismiss = { showFilterSheet = false }
+        )
+    }
 
     val filteredItems = remember(items, selectedFilter, searchQuery, locationFilter) {
         items.filter { item ->
@@ -84,7 +111,9 @@ fun HomeScreen(
         onClearLocationFilter = { viewModel.clearLocationFilter() },
         onItemClick = { onNavigateToDetail(it.id) },
         onRadarClick = onNavigateToMap,
-        onFilterClick = {}
+        onFilterClick = { showFilterSheet = true },
+        activeFilterLabel = activeFilterLabel,
+        onClearFilters = viewModel::resetFilters
     )
 }
 
@@ -99,7 +128,9 @@ fun HomeContent(
     onClearLocationFilter: () -> Unit,
     onItemClick: (Item) -> Unit,
     onRadarClick: () -> Unit,
-    onFilterClick: () -> Unit
+    onFilterClick: () -> Unit,
+    activeFilterLabel: String? = null,
+    onClearFilters: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -114,7 +145,9 @@ fun HomeContent(
             onFilterSelected = onFilterSelected,
             locationFilter = locationFilter,
             onClearLocationFilter = onClearLocationFilter,
-            onFilterClick = onFilterClick
+            onFilterClick = onFilterClick,
+            activeFilterLabel = activeFilterLabel,
+            onClearFilters = onClearFilters
         )
 
         LazyColumn(
@@ -179,7 +212,9 @@ fun SearchAndFilterSection(
     onFilterSelected: (String) -> Unit,
     locationFilter: String = "",
     onClearLocationFilter: () -> Unit = {},
-    onFilterClick: () -> Unit
+    onFilterClick: () -> Unit,
+    activeFilterLabel: String? = null,
+    onClearFilters: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -243,7 +278,7 @@ fun SearchAndFilterSection(
                 }
             }
 
-            val isFilterActive = locationFilter.isNotBlank()
+            val isFilterActive = locationFilter.isNotBlank() || activeFilterLabel != null
             Surface(
                 modifier = Modifier
                     .size(46.dp)
@@ -296,6 +331,32 @@ fun SearchAndFilterSection(
                         maxLines = 1
                     )
                 }
+            }
+        }
+
+        if (activeFilterLabel != null) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(OrangeLight)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(Icons.Rounded.Tune, contentDescription = null, tint = OrangePrimary, modifier = Modifier.size(15.dp))
+                Text(
+                    text = "Filter: $activeFilterLabel",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OrangePrimary
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Hapus filter",
+                    tint = OrangePrimary,
+                    modifier = Modifier.size(15.dp).clickable(onClick = onClearFilters)
+                )
             }
         }
 
@@ -558,6 +619,88 @@ fun EmptyFeed() {
             "Coba gunakan kata kunci atau filter lain.",
             fontSize = 12.sp,
             color = MutedText
+        )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun HomeFilterSheet(
+    categories: List<Pair<String, String>>,
+    selectedCategory: String?,
+    selectedStatus: StatusFilter,
+    onApply: (String?, StatusFilter) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var category by remember { mutableStateOf(selectedCategory) }
+    var status by remember { mutableStateOf(selectedStatus) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Filter Laporan", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+
+            Text("Status", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatusFilter.entries.forEach { s ->
+                    FilterChip(selected = status == s, label = s.label, onClick = { status = s })
+                }
+            }
+
+            Text("Kategori", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            if (categories.isEmpty()) {
+                Text("Memuat kategori...", fontSize = 12.sp, color = MutedText)
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = category == null, label = "Semua", onClick = { category = null })
+                categories.forEach { (code, label) ->
+                    FilterChip(selected = category == code, label = label, onClick = { category = code })
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = onReset,
+                    modifier = Modifier.weight(1f).height(46.dp),
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, CardBorder)
+                ) { Text("Reset", color = TextPrimary) }
+                Button(
+                    onClick = { onApply(category, status) },
+                    modifier = Modifier.weight(1f).height(46.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+                ) { Text("Terapkan", fontWeight = FontWeight.SemiBold) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterChip(selected: Boolean, label: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (selected) OrangeLight else Color.White,
+        border = BorderStroke(1.dp, if (selected) OrangePrimary else CardBorder),
+        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick)
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) OrangePrimary else TextPrimary,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
         )
     }
 }

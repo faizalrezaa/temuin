@@ -187,6 +187,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 )
                 PetaScreen(
                     viewModel = viewModel,
+                    onOpenItem = { id -> navController.navigate(Screen.ItemDetail.createRoute(id)) },
                     onNavigateToHomeWithFilter = { filter ->
                         navController.navigate(Screen.Home.createRoute(filter)) {
                             popUpTo(Screen.Home.route) { inclusive = true }

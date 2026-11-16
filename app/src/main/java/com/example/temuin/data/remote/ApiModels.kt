@@ -166,3 +166,5 @@ data class PickupSummaryDto(
     @SerializedName("available_count") val availableCount: Int,
     val items: List<ReportDto>?,
 )
+
+data class CategoryDto(val code: String, val label: String)

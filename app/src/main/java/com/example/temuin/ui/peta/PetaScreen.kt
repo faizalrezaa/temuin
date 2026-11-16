@@ -1,5 +1,13 @@
 package com.example.temuin.ui.peta
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.ChevronRight
 import android.content.Context
 import android.content.Intent
 import android.graphics.PointF
@@ -75,35 +83,15 @@ private val CardBorder = Color(0xFFF0ECE8)
 private val SoftBackground = Color(0xFFF6F4F1)
 private val MutedText = Color(0xFF89827D)
 
-private const val OSM_STYLE_JSON = """
-{
-  "version": 8,
-  "sources": {
-    "osm": {
-      "type": "raster",
-      "tiles": [
-        "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      ],
-      "tileSize": 256,
-      "attribution": "&copy; OpenStreetMap Contributors"
-    }
-  },
-  "layers": [
-    {
-      "id": "osm-tiles",
-      "type": "raster",
-      "source": "osm",
-      "minzoom": 0,
-      "maxzoom": 19
-    }
-  ]
-}
-"""
+// OpenFreeMap: tile OpenStreetMap gratis & tanpa API key (https://openfreemap.org).
+// tile.openstreetmap.org memblokir aplikasi, CARTO sekarang wajib API key.
+private const val MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 
 @Composable
 fun PetaScreen(
     viewModel: PetaViewModel,
-    onNavigateToHomeWithFilter: (String) -> Unit
+    onNavigateToHomeWithFilter: (String) -> Unit,
+    onOpenItem: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -112,6 +100,8 @@ fun PetaScreen(
         uiState = uiState,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onSelectPickupPoint = viewModel::selectPickupPoint,
+        onDismissSheet = { viewModel.selectPickupPoint(null) },
+        onOpenItem = onOpenItem,
         onNavigateToHomeWithFilter = onNavigateToHomeWithFilter,
         onOpenDirections = { point ->
             openExternalGoogleMapsNavigation(context, point)
@@ -125,7 +115,9 @@ fun PetaContent(
     onSearchQueryChange: (String) -> Unit,
     onSelectPickupPoint: (PickupPoint) -> Unit,
     onNavigateToHomeWithFilter: (String) -> Unit,
-    onOpenDirections: (PickupPoint) -> Unit
+    onOpenDirections: (PickupPoint) -> Unit,
+    onDismissSheet: () -> Unit = {},
+    onOpenItem: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val ubCenter = remember { LatLng(-7.9529, 112.6138) }
@@ -144,8 +136,8 @@ fun PetaContent(
                 mapView.apply {
                     getMapAsync { map ->
                         mapInstance = map
-                        map.setStyle(Style.Builder().fromJson(OSM_STYLE_JSON)) {
-                            map.uiSettings.isAttributionEnabled = false
+                        map.setStyle(Style.Builder().fromUri(MAP_STYLE_URL)) {
+                            map.uiSettings.isAttributionEnabled = true // wajib menurut lisensi OpenStreetMap/OpenFreeMap
                             map.uiSettings.isLogoEnabled = false
                             map.uiSettings.isCompassEnabled = false
                             map.cameraPosition = CameraPosition.Builder()
@@ -438,7 +430,7 @@ fun PetaContent(
                 shadowElevation = 2.dp
             ) {
                 Text(
-                    text = "Kampus UB (OSM)",
+                    text = "Kampus UB",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary,
@@ -464,6 +456,9 @@ fun PetaContent(
                 PickupPointDetailCard(
                     pickupPoint = selectedPoint,
                     items = uiState.itemsAtSelectedPoint,
+                    isLoadingItems = uiState.isLoadingItems,
+                    onItemClick = onOpenItem,
+                    onDismiss = onDismissSheet,
                     onNavigateToHome = {
                         onNavigateToHomeWithFilter(selectedPoint.shortName)
                     },
@@ -578,11 +573,38 @@ fun PickupPointDetailCard(
     pickupPoint: PickupPoint,
     items: List<Item>,
     onNavigateToHome: () -> Unit,
-    onDirectionsClick: () -> Unit
+    onDirectionsClick: () -> Unit,
+    isLoadingItems: Boolean = false,
+    onItemClick: (String) -> Unit = {},
+    onDismiss: () -> Unit = {}
 ) {
+    // Panel bisa ditarik: geser ke atas = lihat semua barang, ke bawah = kecilkan / tutup.
+    var expanded by remember(pickupPoint.id) { mutableStateOf(false) }
+    var dragTotal by remember { mutableFloatStateOf(0f) }
+    val dragState = rememberDraggableState { delta -> dragTotal += delta }
+    val dragModifier = Modifier
+        .fillMaxWidth()
+        .draggable(
+            state = dragState,
+            orientation = Orientation.Vertical,
+            onDragStarted = { dragTotal = 0f },
+            onDragStopped = {
+                when {
+                    dragTotal < -40f -> expanded = true
+                    dragTotal > 40f && expanded -> expanded = false
+                    dragTotal > 40f -> onDismiss()
+                }
+            }
+        )
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+        ) { expanded = !expanded }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .animateContentSize()
             .shadow(
                 elevation = 16.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
@@ -595,6 +617,7 @@ fun PickupPointDetailCard(
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
         ) {
+            Column(modifier = dragModifier) {
             // Drag handle
             Box(
                 modifier = Modifier
@@ -658,6 +681,8 @@ fun PickupPointDetailCard(
                 }
             }
 
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Section Header Carousel Mini
@@ -675,13 +700,13 @@ fun PickupPointDetailCard(
 
                 // Tombol Lihat Produk 1 (Text Link)
                 Text(
-                    text = "Lihat Semua",
+                    text = if (expanded) "Ringkas" else "Lihat Semua",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = OrangePrimary,
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .clickable(onClick = onNavigateToHome)
+                        .clickable { expanded = !expanded }
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 )
             }
@@ -689,7 +714,12 @@ fun PickupPointDetailCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Horizontal Carousel Mini Items
-            if (items.isEmpty()) {
+            if (isLoadingItems && items.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator(Modifier.size(22.dp), color = OrangePrimary, strokeWidth = 2.dp) }
+            } else if (items.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -703,13 +733,26 @@ fun PickupPointDetailCard(
                         color = MutedText
                     )
                 }
+            } else if (expanded) {
+                // Daftar lengkap barang di fakultas/pos ini
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items.forEach { item ->
+                        ExpandedItemRow(item = item, onClick = { onItemClick(item.id) })
+                    }
+                }
             } else {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(items, key = { it.id }) { item ->
-                        MiniItemCard(item = item, onClick = onNavigateToHome)
+                        MiniItemCard(item = item, onClick = { onItemClick(item.id) })
                     }
                 }
             }
@@ -777,6 +820,37 @@ fun PickupPointDetailCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ExpandedItemRow(item: Item, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = SoftBackground,
+        border = BorderStroke(1.dp, CardBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = item.title,
+                modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(Color.White),
+                contentScale = ContentScale.Crop
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(item.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.titikPengambilan, fontSize = 11.sp, color = MutedText,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.time, fontSize = 11.sp, color = MutedText)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MutedText)
         }
     }
 }

@@ -44,10 +44,14 @@ interface TemuinApi {
     suspend fun reports(
         @Query("q") q: String? = null,
         @Query("type") type: String? = null,
+        @Query("category") category: String? = null,
         @Query("status") status: String = "ACTIVE",
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 100,
     ): ApiResponse<List<ReportDto>>
+
+    @GET("categories")
+    suspend fun categories(): ApiResponse<List<CategoryDto>>
 
     @GET("reports/{id}")
     suspend fun report(@Path("id") id: String): ApiResponse<ReportDto>

@@ -21,7 +21,8 @@ data class PetaUiState(
     val selectedPoint: PickupPoint? = null,
     val itemsAtSelectedPoint: List<Item> = emptyList(),
     val searchQuery: String = "",
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val isLoadingItems: Boolean = false
 )
 
 class PetaViewModel(
@@ -71,9 +72,10 @@ class PetaViewModel(
 
     private fun loadItemsForPoint(point: PickupPoint) {
         itemsJob?.cancel()
+        _uiState.update { it.copy(itemsAtSelectedPoint = emptyList(), isLoadingItems = true) }
         itemsJob = viewModelScope.launch {
             itemRepository.getItemsAtPickupPoint(point.id).collect { items ->
-                _uiState.update { it.copy(itemsAtSelectedPoint = items) }
+                _uiState.update { it.copy(itemsAtSelectedPoint = items, isLoadingItems = false) }
             }
         }
     }
