@@ -100,7 +100,7 @@ private fun ClaimDialog(
                 OutlinedTextField(
                     value = answer,
                     onValueChange = { answer = it },
-                    placeholder = { Text("Contoh: ada stiker kucing di belakang casing") },
+                    placeholder = { Text("Contoh: ada stiker kucing di belakang casing", color = TextSecondary.copy(alpha = 0.6f)) },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
@@ -115,10 +115,18 @@ private fun ClaimDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = { onSubmit(answer) },
-                enabled = answer.trim().length >= 10 && !submitting
-            ) { Text(if (submitting) "Mengirim..." else "Kirim Klaim", color = OrangePrimary) }
+                enabled = answer.trim().length >= 10 && !submitting,
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+            ) {
+                if (submitting) {
+                    CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(if (submitting) "Mengirim..." else "Kirim Klaim")
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !submitting) { Text("Batal") }
