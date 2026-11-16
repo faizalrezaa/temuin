@@ -13,12 +13,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.temuin.data.source.fake.FakeInboxRepository
 import com.example.temuin.data.source.fake.FakeItemRepository
 import com.example.temuin.data.source.fake.FakeLaporanRepository
+import com.example.temuin.data.source.fake.FakePickupPointRepository
 import com.example.temuin.ui.auth.LoginScreen
 import com.example.temuin.ui.auth.SignupScreen
 import com.example.temuin.ui.components.AppTopBar
@@ -27,6 +31,10 @@ import com.example.temuin.ui.home.HomeScreen
 import com.example.temuin.ui.profile.EditProfileScreen
 import com.example.temuin.ui.profile.ProfileScreen
 import com.example.temuin.ui.home.HomeViewModel
+import com.example.temuin.ui.inbox.InboxScreen
+import com.example.temuin.ui.inbox.InboxViewModel
+import com.example.temuin.ui.peta.PetaScreen
+import com.example.temuin.ui.peta.PetaViewModel
 import com.example.temuin.ui.report.LaporScreen
 import com.example.temuin.ui.report.LaporViewModel
 
@@ -84,7 +92,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Screen.Signup.route)
                     },
                     onLoginSuccess = {
-                        navController.navigate(Screen.Home.route) {
+                        navController.navigate(Screen.Home.createRoute()) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
@@ -99,27 +107,66 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         }
                     },
                     onSignupSuccess = {
-                        navController.navigate(Screen.Home.route) {
+                        navController.navigate(Screen.Home.createRoute()) {
                             popUpTo(Screen.Signup.route) { inclusive = true }
                         }
                     }
                 )
             }
 
-            composable(Screen.Home.route) {
+            composable(
+                route = Screen.Home.route,
+                arguments = listOf(
+                    navArgument(Screen.Home.ARG_LOCATION_FILTER) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val locationFilter = backStackEntry.arguments?.getString(Screen.Home.ARG_LOCATION_FILTER)
                 val viewModel: HomeViewModel = viewModel(
+                    key = locationFilter ?: "home",
                     factory = object : ViewModelProvider.Factory {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            return HomeViewModel(FakeItemRepository()) as T
+                            return HomeViewModel(FakeItemRepository(), locationFilter) as T
                         }
                     }
                 )
-                HomeScreen(viewModel = viewModel)
+                HomeScreen(
+                    viewModel = viewModel,
+                    onNavigateToMap = {
+                        navController.navigate(Screen.Peta.route) {
+                            popUpTo(Screen.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
 
             composable(Screen.Peta.route) {
-                PlaceholderScreen("Peta")
+                val viewModel: PetaViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return PetaViewModel(
+                                pickupPointRepository = FakePickupPointRepository(),
+                                itemRepository = FakeItemRepository()
+                            ) as T
+                        }
+                    }
+                )
+                PetaScreen(
+                    viewModel = viewModel,
+                    onNavigateToHomeWithFilter = { filter ->
+                        navController.navigate(Screen.Home.createRoute(filter)) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
 
             composable(Screen.Lapor.route) {
@@ -135,7 +182,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     viewModel = viewModel,
                     onNavigateBack = { navController.navigateUp() },
                     onNavigateToHome = {
-                        navController.navigate(Screen.Home.route) {
+                        navController.navigate(Screen.Home.createRoute()) {
                             popUpTo(Screen.Home.route) { inclusive = false }
                             launchSingleTop = true
                         }
@@ -144,7 +191,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             }
 
             composable(Screen.Inbox.route) {
-                PlaceholderScreen("Inbox")
+                val viewModel: InboxViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return InboxViewModel(FakeInboxRepository()) as T
+                        }
+                    }
+                )
+                InboxScreen(viewModel = viewModel)
             }
 
             composable(Screen.Profil.route) {

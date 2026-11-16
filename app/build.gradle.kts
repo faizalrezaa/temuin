@@ -55,7 +55,12 @@ dependencies {
     // Tambahkan pustaka ikon extended untuk Jetpack Compose
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Pastikan dependency navigasi dari langkah sebelumnya juga sudah ada
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // MapLibre Android SDK (OpenStreetMap) - 16 KB Page Size Compatible
+    implementation("org.maplibre.gl:android-sdk:11.8.8")
+
+    // AndroidX Graphics Path (16 KB Page Size Compatible)
+    implementation("androidx.graphics:graphics-path:1.1.0")
 }

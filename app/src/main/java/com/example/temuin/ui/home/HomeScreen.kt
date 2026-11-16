@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -47,10 +48,11 @@ fun HomeScreen(
     onNavigateToMap: () -> Unit = {}
 ) {
     val items by viewModel.items.collectAsState()
+    val locationFilter by viewModel.locationFilter.collectAsState()
     var selectedFilter by remember { mutableStateOf("Semua") }
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredItems = remember(items, selectedFilter, searchQuery) {
+    val filteredItems = remember(items, selectedFilter, searchQuery, locationFilter) {
         items.filter { item ->
             val matchesTab = when (selectedFilter) {
                 "Barang Hilang" -> item.status == ItemStatus.DICARI
@@ -62,7 +64,11 @@ fun HomeScreen(
                     item.title.contains(searchQuery, ignoreCase = true) ||
                     item.location.contains(searchQuery, ignoreCase = true)
 
-            matchesTab && matchesSearch
+            val matchesLocation = locationFilter.isBlank() ||
+                    item.location.contains(locationFilter, ignoreCase = true) ||
+                    item.titikPengambilan.contains(locationFilter, ignoreCase = true)
+
+            matchesTab && matchesSearch && matchesLocation
         }
     }
 
@@ -72,6 +78,8 @@ fun HomeScreen(
         onSearchQueryChange = { searchQuery = it },
         selectedFilter = selectedFilter,
         onFilterSelected = { selectedFilter = it },
+        locationFilter = locationFilter,
+        onClearLocationFilter = { viewModel.clearLocationFilter() },
         onItemClick = { onNavigateToDetail(it.id) },
         onRadarClick = onNavigateToMap,
         onFilterClick = {}
@@ -85,6 +93,8 @@ fun HomeContent(
     onSearchQueryChange: (String) -> Unit,
     selectedFilter: String,
     onFilterSelected: (String) -> Unit,
+    locationFilter: String,
+    onClearLocationFilter: () -> Unit,
     onItemClick: (Item) -> Unit,
     onRadarClick: () -> Unit,
     onFilterClick: () -> Unit
@@ -100,6 +110,8 @@ fun HomeContent(
             onSearchQueryChange = onSearchQueryChange,
             selectedFilter = selectedFilter,
             onFilterSelected = onFilterSelected,
+            locationFilter = locationFilter,
+            onClearLocationFilter = onClearLocationFilter,
             onFilterClick = onFilterClick
         )
 
@@ -163,6 +175,8 @@ fun SearchAndFilterSection(
     onSearchQueryChange: (String) -> Unit,
     selectedFilter: String,
     onFilterSelected: (String) -> Unit,
+    locationFilter: String = "",
+    onClearLocationFilter: () -> Unit = {},
     onFilterClick: () -> Unit
 ) {
     Column(
@@ -227,19 +241,20 @@ fun SearchAndFilterSection(
                 }
             }
 
+            val isFilterActive = locationFilter.isNotBlank()
             Surface(
                 modifier = Modifier
                     .size(46.dp)
                     .clickable(onClick = onFilterClick),
                 shape = RoundedCornerShape(12.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, CardBorder)
+                color = if (isFilterActive) OrangeLight else Color.White,
+                border = BorderStroke(1.dp, if (isFilterActive) OrangePrimary else CardBorder)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Rounded.Tune,
                         contentDescription = "Filter",
-                        tint = TextPrimary,
+                        tint = if (isFilterActive) OrangePrimary else TextPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -279,6 +294,39 @@ fun SearchAndFilterSection(
                         maxLines = 1
                     )
                 }
+            }
+        }
+
+        if (locationFilter.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(OrangeLight)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = OrangePrimary,
+                    modifier = Modifier.size(15.dp)
+                )
+                Text(
+                    text = "Lokasi: $locationFilter",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OrangePrimary
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Hapus filter lokasi",
+                    tint = OrangePrimary,
+                    modifier = Modifier
+                        .size(15.dp)
+                        .clickable(onClick = onClearLocationFilter)
+                )
             }
         }
     }

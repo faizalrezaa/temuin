@@ -70,9 +70,10 @@ fun BottomNavigationBar(navController: NavController) {
             verticalAlignment = Alignment.Bottom
         ) {
             items.forEach { item ->
+                val targetRoute = if (item.route == Screen.Home.route) Screen.Home.createRoute() else item.route
                 val onNavigate: () -> Unit = {
                     if (currentRoute != item.route) {
-                        navController.navigate(item.route) {
+                        navController.navigate(targetRoute) {
                             popUpTo(Screen.Home.route) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
