@@ -24,6 +24,8 @@ import com.example.temuin.ui.auth.SignupScreen
 import com.example.temuin.ui.components.AppTopBar
 import com.example.temuin.ui.components.BottomNavigationBar
 import com.example.temuin.ui.home.HomeScreen
+import com.example.temuin.ui.profile.EditProfileScreen
+import com.example.temuin.ui.profile.ProfileScreen
 import com.example.temuin.ui.home.HomeViewModel
 import com.example.temuin.ui.report.LaporScreen
 import com.example.temuin.ui.report.LaporViewModel
@@ -146,7 +148,21 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             }
 
             composable(Screen.Profil.route) {
-                PlaceholderScreen("Profil")
+                ProfileScreen(
+                    onEditProfile = { navController.navigate(Screen.EditProfile.route) },
+                    onLogout = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(Screen.EditProfile.route) {
+                EditProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onSave = { navController.popBackStack() }
+                )
             }
         }
     }
