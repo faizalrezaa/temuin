@@ -12,7 +12,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
+import coil.compose.AsyncImage
 
 // Warna tambahan dari desain profil
 val ProfileOrange = Color(0xFFFF6B2C)
@@ -23,9 +25,9 @@ val ProfileFieldBorder = Color(0xFFE2CFC8)
 val ProfileDanger = Color(0xFFC62828)
 val ProfileDangerBg = Color(0xFFFFDAD6)
 
-/** Placeholder avatar. Ganti dengan gambar asli (mis. Coil AsyncImage) saat foto tersedia. */
+/** Avatar dari URL; ikon orang kalau belum ada foto. */
 @Composable
-fun ProfileAvatar(size: Dp, modifier: Modifier = Modifier) {
+fun ProfileAvatar(size: Dp, url: String?, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(size)
@@ -35,9 +37,17 @@ fun ProfileAvatar(size: Dp, modifier: Modifier = Modifier) {
     ) {
         Icon(
             Icons.Default.Person,
-            contentDescription = "Foto profil",
+            contentDescription = null,
             tint = Color(0xFF8D6E63),
             modifier = Modifier.size(size * 0.6f)
         )
+        if (!url.isNullOrBlank()) {
+            AsyncImage(
+                model = url,
+                contentDescription = "Foto profil",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(size).clip(CircleShape)
+            )
+        }
     }
 }

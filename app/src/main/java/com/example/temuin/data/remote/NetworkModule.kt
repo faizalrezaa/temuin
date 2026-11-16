@@ -8,8 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object NetworkModule {
 
-    private const val BASE_URL =
-        "https://remissly-crumbier-michelle.ngrok-free.app/api/v1/"
+    private const val BASE_URL = ApiConfig.BASE_URL
 
     val authApiService: AuthApiService by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -17,6 +16,13 @@ object NetworkModule {
         }
 
         val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("ngrok-skip-browser-warning", "1")
+                        .build()
+                )
+            }
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

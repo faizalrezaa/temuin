@@ -35,28 +35,40 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.temuin.ui.theme.BackgroundLight
 import com.example.temuin.ui.theme.TemuinTheme
 import com.example.temuin.ui.theme.TextPrimary
 import com.example.temuin.ui.theme.TextSecondary
 
-private val fakultasList = listOf(
-    "FIB UB", "FILKOM UB", "FT UB", "FEB UB", "FH UB", "FISIP UB", "FK UB", "FMIPA UB"
-)
-
 @Composable
 fun EditProfileScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
+    viewModel: EditProfileViewModel = viewModel(),
 ) {
-    var nama by remember { mutableStateOf("Alya Rahmadina") }
-    var nim by remember { mutableStateOf("2106728910") }
-    var fakultas by remember { mutableStateOf("FIB UB") }
-    var telepon by remember { mutableStateOf("0812-3456-7890") }
-    var password by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf("") }
-    val passwordError = password.isNotEmpty() && confirm.isNotEmpty() && password != confirm
+    val s by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
 
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes != null) viewModel.uploadAvatar(bytes, mime)
+        }
+    }
+
+    LaunchedEffect(s.saved) { if (s.saved) onSave() }
+    LaunchedEffect(s.error) {
+        s.error?.let { snackbar.showSnackbar(it); viewModel.dismissError() }
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Column(
         Modifier
             .fillMaxSize()
@@ -79,8 +91,13 @@ fun EditProfileScreen(
 
         // Foto profil
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.clickable { /* TODO: pilih foto */ }) {
-                ProfileAvatar(92.dp)
+            Box(Modifier.clickable(enabled = !s.uploadingAvatar) {
+                photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) {
+                ProfileAvatar(92.dp, s.avatarUrl)
+                if (s.uploadingAvatar) {
+                    CircularProgressIndicator(Modifier.size(92.dp), color = ProfileOrange, strokeWidth = 3.dp)
+                }
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)
@@ -98,20 +115,24 @@ fun EditProfileScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        Surface(shape = RoundedCornerShape(16.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+        if (s.loading) {
+            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = ProfileOrange)
+            }
+        } else Surface(shape = RoundedCornerShape(16.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 FieldLabel("Nama Lengkap")
-                ProfileTextField(nama, { nama = it })
+                ProfileTextField(s.name, viewModel::onName)
 
                 FieldLabel("NIM (Nomor Induk Mahasiswa)")
-                ProfileTextField(nim, { nim = it }, keyboardType = KeyboardType.Number)
+                ProfileTextField(s.nim, viewModel::onNim, keyboardType = KeyboardType.Number)
                 Hint(Icons.Outlined.Info, "Digunakan untuk validasi kartu identitas kampus")
 
                 FieldLabel("Fakultas")
-                FakultasDropdown(fakultas) { fakultas = it }
+                FakultasDropdown(s.faculty, s.faculties.map { it.name }, viewModel::onFaculty)
 
                 FieldLabel("Nomor Telepon / WhatsApp")
-                ProfileTextField(telepon, { telepon = it }, keyboardType = KeyboardType.Phone)
+                ProfileTextField(s.whatsapp, viewModel::onWhatsapp, keyboardType = KeyboardType.Phone)
                 Hint(Icons.AutoMirrored.Outlined.Chat, "Untuk koordinasi instan saat klaim barang")
 
                 HorizontalDivider(Modifier.padding(vertical = 20.dp), color = Color(0xFFF0E4DF))
@@ -123,33 +144,45 @@ fun EditProfileScreen(
                 }
 
                 FieldLabel("Kata Sandi Baru")
-                PasswordField(password, { password = it }, "Kosongkan jika tidak diubah")
+                PasswordField(s.newPassword, viewModel::onNewPassword, "Kosongkan jika tidak diubah")
                 Hint(Icons.Outlined.Shield, "Gunakan minimal 8 karakter dengan kombinasi angka")
 
                 FieldLabel("Ulangi Kata Sandi")
-                PasswordField(confirm, { confirm = it }, "Ulang kata sandi baru", isError = passwordError)
-                if (passwordError) {
+                PasswordField(s.confirmPassword, viewModel::onConfirmPassword, "Ulang kata sandi baru", isError = s.passwordMismatch)
+                if (s.passwordMismatch) {
                     Text("Kata sandi tidak sama", color = ProfileDanger, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                }
+
+                // API butuh current_password untuk ganti sandi → muncul hanya kalau sandi baru diisi
+                if (s.wantsPasswordChange) {
+                    FieldLabel("Kata Sandi Saat Ini")
+                    PasswordField(s.currentPassword, viewModel::onCurrentPassword, "Masukkan kata sandi saat ini")
                 }
             }
         }
 
         Spacer(Modifier.height(32.dp))
         Button(
-            onClick = onSave,
-            enabled = !passwordError,
+            onClick = viewModel::save,
+            enabled = !s.passwordMismatch && !s.saving && !s.loading && !s.uploadingAvatar,
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = ProfileOrange)
         ) {
-            Text("Simpan Perubahan", fontSize = 15.sp)
-            Spacer(Modifier.width(6.dp))
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(18.dp))
+            if (s.saving) {
+                CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Text("Simpan Perubahan", fontSize = 15.sp)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(18.dp))
+            }
         }
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
             Text("Batal / Kembali", color = Color(0xFF5D4037), fontWeight = FontWeight.Medium, fontSize = 15.sp)
         }
         Spacer(Modifier.height(16.dp))
+    }
+    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
 }
 
@@ -231,7 +264,7 @@ private fun PasswordField(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FakultasDropdown(selected: String, onSelect: (String) -> Unit) {
+private fun FakultasDropdown(selected: String, options: List<String>, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
@@ -244,15 +277,10 @@ private fun FakultasDropdown(selected: String, onSelect: (String) -> Unit) {
             trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, null, tint = TextPrimary) }
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            fakultasList.forEach {
+            options.forEach {
                 DropdownMenuItem(text = { Text(it) }, onClick = { onSelect(it); expanded = false })
             }
         }
     }
 }
 
-@Preview(showBackground = true, heightDp = 1100)
-@Composable
-private fun EditProfileScreenPreview() {
-    TemuinTheme { EditProfileScreen(onBack = {}, onSave = {}) }
-}

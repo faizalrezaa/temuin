@@ -67,6 +67,7 @@ dependencies {
     // ViewModel KTX & Coroutines
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
