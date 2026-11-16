@@ -52,7 +52,7 @@ class InboxViewModel(private val repository: InboxRepository) : ViewModel() {
             _loadingIds.value = _loadingIds.value + id
             repository.setujuiKlaim(id)
                 .onSuccess { _actionResult.value = "Klaim berhasil disetujui." }
-                .onFailure { _actionResult.value = "Gagal menyetujui klaim. Coba lagi." }
+                .onFailure { _actionResult.value = it.message ?: "Gagal menyetujui klaim. Coba lagi." }
             _loadingIds.value = _loadingIds.value - id
         }
     }
@@ -62,10 +62,12 @@ class InboxViewModel(private val repository: InboxRepository) : ViewModel() {
             _loadingIds.value = _loadingIds.value + id
             repository.tolakKlaim(id)
                 .onSuccess { _actionResult.value = "Klaim berhasil ditolak." }
-                .onFailure { _actionResult.value = "Gagal menolak klaim. Coba lagi." }
+                .onFailure { _actionResult.value = it.message ?: "Gagal menolak klaim. Coba lagi." }
             _loadingIds.value = _loadingIds.value - id
         }
     }
+
+    fun refresh() = repository.refresh()
 
     fun clearActionResult() {
         _actionResult.value = null

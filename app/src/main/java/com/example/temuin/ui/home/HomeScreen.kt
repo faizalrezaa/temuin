@@ -52,6 +52,8 @@ fun HomeScreen(
     var selectedFilter by remember { mutableStateOf("Semua") }
     var searchQuery by remember { mutableStateOf("") }
 
+    LaunchedEffect(Unit) { viewModel.refresh() }
+
     val filteredItems = remember(items, selectedFilter, searchQuery, locationFilter) {
         items.filter { item ->
             val matchesTab = when (selectedFilter) {

@@ -78,6 +78,7 @@ fun LaporScreen(
 ) {
     val formState by viewModel.formState.collectAsState()
     val submitState by viewModel.submitState.collectAsState()
+    val pickupPointOptions by viewModel.pickupPointOptions.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Navigasi langsung ke Home saat submit berhasil
@@ -112,7 +113,8 @@ fun LaporScreen(
             onLokasiKehilanganChanged = viewModel::onLokasiKehilanganChanged,
             onAddFotos = viewModel::onAddFotos,
             onRemoveFoto = viewModel::onRemoveFoto,
-            onSubmit = viewModel::submitLaporan
+            onSubmit = viewModel::submitLaporan,
+            pickupPointOptions = pickupPointOptions
         )
     }
 }
@@ -133,7 +135,8 @@ fun LaporContent(
     onLokasiKehilanganChanged: (String) -> Unit,
     onAddFotos: (List<String>) -> Unit,
     onRemoveFoto: (String) -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    pickupPointOptions: List<String> = DAFTAR_POS_SATPAM_UB
 ) {
     val scrollState = rememberScrollState()
     val isFormValid = remember(formState) {
@@ -247,7 +250,8 @@ fun LaporContent(
                 selectedMetode = formState.metodePenyerahan,
                 selectedLokasiPenitipan = formState.lokasiPenitipan,
                 onMetodeSelected = onMetodeChanged,
-                onLokasiPenitipanSelected = onLokasiPenitipanChanged
+                onLokasiPenitipanSelected = onLokasiPenitipanChanged,
+                options = pickupPointOptions
             )
         }
 
@@ -778,7 +782,8 @@ fun MetodePenyerahanSection(
     selectedMetode: MetodePenyerahan,
     selectedLokasiPenitipan: String,
     onMetodeSelected: (MetodePenyerahan) -> Unit,
-    onLokasiPenitipanSelected: (String) -> Unit
+    onLokasiPenitipanSelected: (String) -> Unit,
+    options: List<String> = DAFTAR_POS_SATPAM_UB
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -857,7 +862,7 @@ fun MetodePenyerahanSection(
                             .padding(start = 30.dp, top = 2.dp)
                     ) {
                         OutlinedTextField(
-                            value = selectedLokasiPenitipan.ifBlank { DAFTAR_POS_SATPAM_UB.first() },
+                            value = selectedLokasiPenitipan.ifBlank { options.firstOrNull().orEmpty() },
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Pilih Lokasi Pos Satpam", fontSize = 12.sp) },
@@ -880,7 +885,7 @@ fun MetodePenyerahanSection(
                             onDismissRequest = { expanded = false },
                             modifier = Modifier.background(Color.White)
                         ) {
-                            DAFTAR_POS_SATPAM_UB.forEach { lokasi ->
+                            options.forEach { lokasi ->
                                 DropdownMenuItem(
                                     text = {
                                         Text(

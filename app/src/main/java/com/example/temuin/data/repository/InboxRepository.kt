@@ -7,4 +7,5 @@ interface InboxRepository {
     fun getInboxItems(): Flow<List<InboxItem>>
     suspend fun setujuiKlaim(id: String): Result<Unit>
     suspend fun tolakKlaim(id: String): Result<Unit>
+    fun refresh() {}
 }

@@ -2,6 +2,7 @@ package com.example.temuin.data.remote
 
 import com.example.temuin.data.local.TokenStore
 import com.google.gson.Gson
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.HttpException
@@ -16,6 +17,28 @@ object ApiConfig {
 }
 
 object ApiClient {
+    /**
+     * OkHttp untuk Coil (gambar): kirim header ngrok & ganti URL "localhost"/"10.0.2.2"
+     * dari backend ke host BASE_URL supaya bisa dibuka dari HP/emulator mana pun.
+     */
+    val imageHttpClient: OkHttpClient by lazy {
+        val base = ApiConfig.BASE_URL.toHttpUrl()
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                var url = chain.request().url
+                if (url.host in setOf("localhost", "127.0.0.1", "10.0.2.2") && url.host != base.host) {
+                    url = url.newBuilder().scheme(base.scheme).host(base.host).port(base.port).build()
+                }
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .url(url)
+                        .header("ngrok-skip-browser-warning", "1")
+                        .build()
+                )
+            }
+            .build()
+    }
+
     private val gson = Gson()
 
     private val okHttp: OkHttpClient by lazy {

@@ -17,5 +17,10 @@ data class Item(
     val titikPengambilan: String,
     val infoPelaporNama: String,
     val infoPelaporFakultas: String,
-    val kontakPelapor: String
+    val kontakPelapor: String,
+    // Dari API (flag `viewer` di detail laporan)
+    val isOwner: Boolean = false,
+    val canClaim: Boolean = false,
+    val canContact: Boolean = false,
+    val myClaimStatus: String? = null
 )

@@ -23,10 +23,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.temuin.data.local.TokenManager
 import com.example.temuin.data.remote.NetworkModule
-import com.example.temuin.data.source.fake.FakeInboxRepository
-import com.example.temuin.data.source.fake.FakeItemRepository
-import com.example.temuin.data.source.fake.FakeLaporanRepository
-import com.example.temuin.data.source.fake.FakePickupPointRepository
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.createSavedStateHandle
+import com.example.temuin.data.local.TokenStore
+import com.example.temuin.data.source.remote.RemoteInboxRepository
+import com.example.temuin.data.source.remote.RemoteItemRepository
+import com.example.temuin.data.source.remote.RemoteLaporanRepository
+import com.example.temuin.data.source.remote.RemotePickupPointRepository
+import com.example.temuin.ui.detail.ItemDetailScreen
+import com.example.temuin.ui.detail.ItemDetailViewModel
 import com.example.temuin.data.source.remote.RemoteAuthRepository
 import com.example.temuin.ui.auth.AuthViewModel
 import com.example.temuin.ui.auth.LoginScreen
@@ -102,7 +107,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Login.route,
+            startDestination = remember { if (TokenStore.token != null) Screen.Home.route else Screen.Login.route },
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Login.route) {
@@ -151,12 +156,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     factory = object : ViewModelProvider.Factory {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            return HomeViewModel(FakeItemRepository(), locationFilter) as T
+                            return HomeViewModel(RemoteItemRepository(), locationFilter) as T
                         }
                     }
                 )
                 HomeScreen(
                     viewModel = viewModel,
+                    onNavigateToDetail = { id -> navController.navigate(Screen.ItemDetail.createRoute(id)) },
                     onNavigateToMap = {
                         navController.navigate(Screen.Peta.route) {
                             popUpTo(Screen.Home.route) { saveState = true }
@@ -173,8 +179,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
                             return PetaViewModel(
-                                pickupPointRepository = FakePickupPointRepository(),
-                                itemRepository = FakeItemRepository()
+                                pickupPointRepository = RemotePickupPointRepository(),
+                                itemRepository = RemoteItemRepository()
                             ) as T
                         }
                     }
@@ -195,7 +201,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     factory = object : ViewModelProvider.Factory {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            return LaporViewModel(FakeLaporanRepository()) as T
+                            return LaporViewModel(RemoteLaporanRepository(context)) as T
                         }
                     }
                 )
@@ -216,21 +222,36 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     factory = object : ViewModelProvider.Factory {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            return InboxViewModel(FakeInboxRepository()) as T
+                            return InboxViewModel(RemoteInboxRepository()) as T
                         }
                     }
                 )
+                LaunchedEffect(Unit) { viewModel.refresh() }
                 InboxScreen(viewModel = viewModel)
             }
 
             composable(Screen.Profil.route) {
                 ProfileScreen(
                     onEditProfile = { navController.navigate(Screen.EditProfile.route) },
+                    onOpenReport = { id -> navController.navigate(Screen.ItemDetail.createRoute(id)) },
                     onLogout = {
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable(
+                route = Screen.ItemDetail.route,
+                arguments = listOf(navArgument("itemId") { type = NavType.StringType })
+            ) {
+                val viewModel: ItemDetailViewModel = viewModel {
+                    ItemDetailViewModel(createSavedStateHandle(), RemoteItemRepository())
+                }
+                ItemDetailScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 

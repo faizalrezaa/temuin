@@ -67,16 +67,13 @@ class PetaViewModel(
         }
     }
 
+    private var itemsJob: kotlinx.coroutines.Job? = null
+
     private fun loadItemsForPoint(point: PickupPoint) {
-        viewModelScope.launch {
-            itemRepository.getItems().collect { allItems ->
-                val filtered = allItems.filter { item ->
-                    item.titikPengambilan.contains(point.shortName, ignoreCase = true) ||
-                            item.location.contains(point.shortName, ignoreCase = true) ||
-                            item.titikPengambilan.contains(point.name, ignoreCase = true) ||
-                            item.location.contains(point.name, ignoreCase = true)
-                }
-                _uiState.update { it.copy(itemsAtSelectedPoint = filtered) }
+        itemsJob?.cancel()
+        itemsJob = viewModelScope.launch {
+            itemRepository.getItemsAtPickupPoint(point.id).collect { items ->
+                _uiState.update { it.copy(itemsAtSelectedPoint = items) }
             }
         }
     }

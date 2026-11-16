@@ -26,6 +26,19 @@ class LaporViewModel(
     private val _formState = MutableStateFlow(LaporanFormData())
     val formState: StateFlow<LaporanFormData> = _formState.asStateFlow()
 
+    private val _pickupPointOptions = MutableStateFlow(DAFTAR_POS_SATPAM_UB)
+    val pickupPointOptions: StateFlow<List<String>> = _pickupPointOptions.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val names = repository.getPickupPointNames()
+            if (names.isNotEmpty()) {
+                _pickupPointOptions.value = names
+                _formState.update { if (it.lokasiPenitipan in names) it else it.copy(lokasiPenitipan = names.first()) }
+            }
+        }
+    }
+
     private val _submitState = MutableStateFlow<SubmitState>(SubmitState.Idle)
     val submitState: StateFlow<SubmitState> = _submitState.asStateFlow()
 

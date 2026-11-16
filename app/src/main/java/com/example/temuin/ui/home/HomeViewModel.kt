@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 
 class HomeViewModel(
@@ -18,12 +19,21 @@ class HomeViewModel(
     private val _locationFilter = MutableStateFlow(initialLocationFilter ?: "")
     val locationFilter: StateFlow<String> = _locationFilter.asStateFlow()
 
-    val items: StateFlow<List<Item>> = repository.getItems()
+    private val refreshTrigger = MutableStateFlow(0)
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val items: StateFlow<List<Item>> = refreshTrigger
+        .flatMapLatest { repository.getItems() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    /** Ambil ulang feed dari server (dipanggil setiap Home tampil). */
+    fun refresh() {
+        refreshTrigger.value++
+    }
 
     fun setLocationFilter(filter: String) {
         _locationFilter.value = filter

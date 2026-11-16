@@ -3,6 +3,7 @@ package com.example.temuin.ui.detail
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,9 +16,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,14 +35,85 @@ import com.example.temuin.ui.theme.*
 fun ItemDetailScreen(
     viewModel: ItemDetailViewModel,
     onBackClick: () -> Unit,
-    onActionClick: () -> Unit
 ) {
     val item by viewModel.item.collectAsState()
+    val message by viewModel.message.collectAsState()
+    val contactLink by viewModel.contactLink.collectAsState()
+    val submitting by viewModel.submitting.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+    var showClaimDialog by remember { mutableStateOf(false) }
 
-    ItemDetailContent(
-        item = item,
-        onBackClick = onBackClick,
-        onActionClick = onActionClick
+    LaunchedEffect(message) {
+        message?.let { snackbar.showSnackbar(it); viewModel.clearMessage() }
+    }
+    LaunchedEffect(contactLink) {
+        contactLink?.let {
+            runCatching {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(it)))
+            }
+            viewModel.clearContactLink()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        ItemDetailContent(
+            item = item,
+            onBackClick = onBackClick,
+            onActionClick = {
+                val current = item ?: return@ItemDetailContent
+                if (current.status == ItemStatus.DITEMUKAN) showClaimDialog = true
+                else viewModel.contactReporter()
+            }
+        )
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp))
+    }
+
+    if (showClaimDialog) {
+        ClaimDialog(
+            submitting = submitting,
+            onDismiss = { showClaimDialog = false },
+            onSubmit = { answer -> viewModel.submitClaim(answer) { showClaimDialog = false } }
+        )
+    }
+}
+
+@Composable
+private fun ClaimDialog(
+    submitting: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit,
+) {
+    var answer by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { if (!submitting) onDismiss() },
+        title = { Text("Ajukan Klaim", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "Sebutkan ciri khusus barang yang hanya diketahui pemiliknya. Jawaban ini rahasia dan hanya dibaca penemu.",
+                    fontSize = 13.sp, color = TextSecondary
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = answer,
+                    onValueChange = { answer = it },
+                    placeholder = { Text("Contoh: ada stiker kucing di belakang casing") },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("Minimal 10 karakter") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(answer) },
+                enabled = answer.trim().length >= 10 && !submitting
+            ) { Text(if (submitting) "Mengirim..." else "Kirim Klaim", color = OrangePrimary) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !submitting) { Text("Batal") }
+        }
     )
 }
 
@@ -80,7 +150,7 @@ fun ItemDetailContent(
             )
         },
         bottomBar = {
-            if (item != null) {
+            if (item != null && !item.isOwner) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -90,19 +160,25 @@ fun ItemDetailContent(
                     tonalElevation = 8.dp
                 ) {
                     Box(modifier = Modifier.padding(16.dp)) {
+                        val (buttonText, enabled) = when {
+                            item.status == ItemStatus.DITEMUKAN && item.myClaimStatus == "PENDING" ->
+                                "Klaim Sedang Ditinjau Penemu" to false
+                            item.status == ItemStatus.DITEMUKAN && item.myClaimStatus == "APPROVED" ->
+                                "Klaim Disetujui • Cek Inbox" to false
+                            item.status == ItemStatus.DITEMUKAN ->
+                                (if (item.canClaim) "Klaim Barang Ini" else "Barang Tidak Dapat Diklaim") to item.canClaim
+                            else ->
+                                (if (item.canContact) "Saya Menemukan Barang Ini" else "Kontak Tidak Tersedia") to item.canContact
+                        }
                         Button(
                             onClick = onActionClick,
+                            enabled = enabled,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
                         ) {
-                            val buttonText = if (item.status == ItemStatus.DITEMUKAN) {
-                                "Klaim Barang Ini"
-                            } else {
-                                "Saya Menemukan Barang Ini"
-                            }
                             Text(
                                 text = buttonText,
                                 fontSize = 16.sp,
