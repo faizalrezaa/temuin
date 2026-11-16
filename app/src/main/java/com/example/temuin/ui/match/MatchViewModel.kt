@@ -3,8 +3,9 @@ package com.example.temuin.ui.match
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.temuin.data.match.MatchApiException
+import com.example.temuin.data.match.MatchParseException
 import com.example.temuin.data.match.MatchRepository
-import com.example.temuin.data.match.MockMatchRepository
+import com.example.temuin.data.match.RemoteMatchRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MatchViewModel(
-    private val repository: MatchRepository = MockMatchRepository(),
+    private val repository: MatchRepository = RemoteMatchRepository(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main,
 ) : ViewModel() {
 
@@ -43,6 +44,7 @@ class MatchViewModel(
                             throwable.statusCode,
                             throwable.errorCode
                         )
+                        is MatchParseException -> MatchPresenter.invalidResponseFailure()
                         else -> MatchPresenter.failureFor(null)
                     }
                     _uiState.value = MatchUiState.Error(failure)
