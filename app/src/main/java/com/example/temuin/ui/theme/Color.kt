@@ -14,11 +14,11 @@ val SurfaceLight = Color(0xFFFFFFFF)
 val CardBackground = Color(0xFFF8F9FA)
 
 // Status Colors (Tag Hilang & Ditemukan)
-val TagHilangBg = Color(0xFFFFEBEE)
-val TagHilangText = Color(0xFFD32F2F)
+val TagHilangBg = Color(0xFFFFE8E5)
+val TagHilangText = Color(0xFFBA1A1A)
 
-val TagTemuanBg = Color(0xFFE8F5E9)
-val TagTemuanText = Color(0xFF2E7D32)
+val TagTemuanBg = Color(0xFFE6F7EC)
+val TagTemuanText = Color(0xFF006E2A)
 
 // Text & Neutral Colors
 val TextPrimary = Color(0xFF1E1E1E)

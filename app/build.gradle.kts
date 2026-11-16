@@ -57,4 +57,5 @@ dependencies {
 
     // Pastikan dependency navigasi dari langkah sebelumnya juga sudah ada
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }
