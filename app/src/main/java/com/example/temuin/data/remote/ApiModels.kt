@@ -168,3 +168,33 @@ data class PickupSummaryDto(
 )
 
 data class CategoryDto(val code: String, val label: String)
+
+// ---- Match recommendations ----
+data class MatchResultDto(
+    val source: String? = null,
+    val notices: List<String>? = null,
+    @SerializedName("candidates_found") val candidatesFound: Int? = null,
+    val items: List<MatchItemDto>? = null,
+)
+
+data class MatchItemDto(
+    val report: MatchReportDto? = null,
+    val level: String? = null,
+    @SerializedName("matched_attributes") val matchedAttributes: List<String>? = null,
+    @SerializedName("different_attributes") val differentAttributes: List<String>? = null,
+    @SerializedName("not_comparable_attributes") val notComparableAttributes: List<String>? = null,
+    val reason: String? = null,
+    @SerializedName("pre_score") val preScore: Double? = null,
+    @SerializedName("incomplete_data") val incompleteData: Boolean? = null,
+)
+
+data class MatchReportDto(
+    val id: String? = null,
+    val title: String? = null,
+    val category: String? = null,
+    val color: String? = null,
+    val description: String? = null,
+    @SerializedName("occurred_at") val occurredAt: String? = null,
+    @SerializedName("location_name") val locationName: String? = null,
+    @SerializedName("owner_name") val ownerName: String? = null,
+)

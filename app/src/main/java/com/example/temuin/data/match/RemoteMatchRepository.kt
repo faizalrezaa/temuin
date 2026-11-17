@@ -1,161 +1,99 @@
 package com.example.temuin.data.match
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
+import com.example.temuin.data.remote.ApiClient
+import com.example.temuin.data.remote.ApiErrorEnvelope
+import com.example.temuin.data.remote.MatchItemDto
+import com.example.temuin.data.remote.MatchReportDto
+import com.example.temuin.data.remote.MatchResultDto
+import com.example.temuin.data.remote.TemuinApi
+import com.google.gson.Gson
+import com.google.gson.stream.MalformedJsonException
+import kotlinx.coroutines.CancellationException
+import retrofit2.HttpException
+import java.io.IOException
 
 /**
  * Remote implementation of [MatchRepository] for API Contract v1:
- * POST /reports/{id}/matches.
+ * POST /reports/{id}/matches, using the app-wide [TemuinApi] client.
  */
 class RemoteMatchRepository(
-    private val baseUrl: String = DEFAULT_BASE_URL,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val api: TemuinApi = ApiClient.api,
+    private val gson: Gson = Gson(),
 ) : MatchRepository {
 
-    override suspend fun getMatches(reportId: String): Result<MatchResult> = withContext(ioDispatcher) {
-        runCatching {
-            val connection = openConnection(reportId)
-            try {
-                val status = connection.responseCode
-                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
-                    ?.bufferedReader()
-                    ?.use { it.readText() }
-                    .orEmpty()
-
-                if (status !in 200..299) throw apiException(status, body)
-                parseMatchResponse(body)
-            } finally {
-                connection.disconnect()
-            }
-        }
+    override suspend fun getMatches(reportId: String): Result<MatchResult> = try {
+        val response = api.matches(reportId)
+        if (!response.success) throw MatchApiException(422)
+        Result.success((response.data ?: throw MatchParseException()).toDomain())
+    } catch (error: MatchApiException) {
+        Result.failure(error)
+    } catch (error: MatchParseException) {
+        Result.failure(error)
+    } catch (error: HttpException) {
+        Result.failure(error.toMatchApiException())
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: MalformedJsonException) {
+        Result.failure(MatchParseException(error))
+    } catch (error: IOException) {
+        Result.failure(error)
+    } catch (error: Exception) {
+        Result.failure(MatchParseException(error))
     }
 
-    private fun openConnection(reportId: String): HttpURLConnection {
-        val encodedId = URLEncoder.encode(reportId, "UTF-8")
-        val url = URL("${baseUrl.trimEnd('/')}/reports/$encodedId/matches")
-        return (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("Content-Type", "application/json")
-            doOutput = true
-            outputStream.use { it.write("{}".toByteArray()) }
-        }
-    }
-
-    private fun apiException(status: Int, body: String): MatchApiException {
-        val error = runCatching { JSONObject(body).opt("error") }.getOrNull()
-        val code = when (error) {
-            is JSONObject -> error.stringOrNull("code")
-            is String -> error.ifBlank { null }
-            else -> null
-        }
-        val message = when (error) {
-            is JSONObject -> error.stringOrNull("message")
-            is String -> error.takeIf { it.isNotBlank() }
-            else -> null
-        }
-        return MatchApiException(status, code, message)
-    }
-
-    companion object {
-        // shortcut: emulator host loopback is hardcoded for coursework; move to BuildConfig when environments exist.
-        const val DEFAULT_BASE_URL = "http://10.0.2.2:8080/api/v1"
-        private const val CONNECT_TIMEOUT_MS = 15_000
-        private const val READ_TIMEOUT_MS = 30_000
+    private fun HttpException.toMatchApiException(): MatchApiException {
+        val error = runCatching {
+            gson.fromJson(response()?.errorBody()?.string(), ApiErrorEnvelope::class.java)
+        }.getOrNull()?.error
+        return MatchApiException(code(), error?.code, error?.message, this)
     }
 }
 
-/** Thrown when a 2xx body does not match the contract or is not valid JSON. */
+/** Thrown when a 2xx body does not match the contract or cannot be parsed. */
 class MatchParseException(cause: Throwable? = null) :
     Exception("Respons rekomendasi tidak dapat dibaca.", cause)
 
-internal fun parseMatchResponse(raw: String): MatchResult {
-    val root = try {
-        JSONObject(raw)
-    } catch (error: Exception) {
-        throw MatchParseException(error)
-    }
-
-    if (!root.optBoolean("success", true)) {
-        val error = root.opt("error")
-        val code = if (error is JSONObject) error.stringOrNull("code") else null
-        throw MatchApiException(statusCode = 422, errorCode = code)
-    }
-
-    val data = root.optJSONObject("data") ?: throw MatchParseException()
-    val itemsJson = data.optJSONArray("items") ?: JSONArray()
-    val items = buildList {
-        for (index in 0 until itemsJson.length()) {
-            val item = itemsJson.optJSONObject(index) ?: continue
-            val report = item.optJSONObject("report") ?: continue
-            add(
-                MatchItem(
-                    report = report.toMatchReport(),
-                    level = item.stringOrNull("level").toLevel(),
-                    matchedAttributes = item.optJSONArray("matched_attributes").toAttributes(),
-                    differentAttributes = item.optJSONArray("different_attributes").toAttributes(),
-                    notComparableAttributes = item.optJSONArray("not_comparable_attributes").toAttributes(),
-                    reason = item.optString("reason"),
-                    incompleteData = item.optBoolean("incomplete_data", false),
-                )
-            )
-        }
-    }
-
+private fun MatchResultDto.toDomain(): MatchResult {
+    val mappedItems = items.orEmpty().mapNotNull { it.toDomainOrNull() }
     return MatchResult(
-        source = when (data.stringOrNull("source")?.uppercase()) {
+        source = when (source?.uppercase()) {
             "AI" -> MatchSource.AI
             else -> MatchSource.RULE_BASED
         },
-        notices = data.optJSONArray("notices").toStringList(),
-        candidatesFound = data.optInt("candidates_found", items.size),
-        items = items,
+        notices = notices.orEmpty().filter { it.isNotBlank() },
+        candidatesFound = candidatesFound ?: mappedItems.size,
+        items = mappedItems,
     )
 }
 
-private fun JSONObject.toMatchReport() = MatchReport(
-    id = optString("id"),
-    title = optString("title"),
-    category = optString("category"),
-    color = stringOrNull("color"),
-    description = optString("description"),
-    occurredAt = optString("occurred_at"),
-    locationName = optString("location_name"),
-    ownerName = stringOrNull("owner_name"),
+private fun MatchItemDto.toDomainOrNull(): MatchItem? {
+    val reportDto = report ?: return null
+    return MatchItem(
+        report = reportDto.toDomain(),
+        level = when (level?.uppercase()) {
+            "HIGH" -> MatchLevel.HIGH
+            "MEDIUM" -> MatchLevel.MEDIUM
+            else -> MatchLevel.LOW
+        },
+        matchedAttributes = matchedAttributes.toAttributes(),
+        differentAttributes = differentAttributes.toAttributes(),
+        notComparableAttributes = notComparableAttributes.toAttributes(),
+        reason = reason.orEmpty(),
+        incompleteData = incompleteData ?: false,
+    )
+}
+
+private fun MatchReportDto.toDomain() = MatchReport(
+    id = id.orEmpty(),
+    title = title.orEmpty(),
+    category = category.orEmpty(),
+    color = color?.takeIf { it.isNotBlank() },
+    description = description.orEmpty(),
+    occurredAt = occurredAt.orEmpty(),
+    locationName = locationName.orEmpty(),
+    ownerName = ownerName?.takeIf { it.isNotBlank() },
 )
 
-private fun JSONObject.stringOrNull(key: String): String? =
-    if (has(key) && !isNull(key)) optString(key).takeIf { it.isNotBlank() } else null
-
-private fun JSONArray?.toAttributes(): List<MatchAttribute> {
-    if (this == null) return emptyList()
-    return buildList {
-        for (index in 0 until length()) {
-            val value = optString(index).uppercase()
-            MatchAttribute.entries.firstOrNull { it.name == value }?.let(::add)
-        }
-    }
-}
-
-private fun JSONArray?.toStringList(): List<String> {
-    if (this == null) return emptyList()
-    return buildList {
-        for (index in 0 until length()) {
-            optString(index).takeIf { it.isNotBlank() }?.let(::add)
-        }
-    }
-}
-
-private fun String?.toLevel(): MatchLevel = when (this?.uppercase()) {
-    "HIGH" -> MatchLevel.HIGH
-    "MEDIUM" -> MatchLevel.MEDIUM
-    else -> MatchLevel.LOW
+private fun List<String>?.toAttributes(): List<MatchAttribute> = orEmpty().mapNotNull { raw ->
+    MatchAttribute.entries.firstOrNull { it.name == raw.uppercase() }
 }

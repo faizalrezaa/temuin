@@ -1,13 +1,15 @@
 package com.example.temuin.data.match
 
+import com.example.temuin.data.remote.TemuinApi
 import com.sun.net.httpserver.HttpServer
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.net.InetSocketAddress
 
 class RemoteMatchRepositoryTest {
@@ -20,9 +22,19 @@ class RemoteMatchRepositoryTest {
     }
 
     @Test
-    fun parseMatchResponseMapsContractFields() {
-        val result = parseMatchResponse(SAMPLE_RESPONSE)
+    fun getMatchesMapsContractFields() = runBlocking {
+        var requestMethod = ""
+        var requestBody = ""
+        val baseUrl = startServer(200, SAMPLE_RESPONSE) { exchange ->
+            requestMethod = exchange.requestMethod
+            requestBody = exchange.requestBody.bufferedReader().readText()
+        }
+        val repository = RemoteMatchRepository(apiFor(baseUrl))
 
+        val result = repository.getMatches("report-1").getOrThrow()
+
+        assertEquals("POST", requestMethod)
+        assertEquals("{}", requestBody)
         assertEquals(MatchSource.AI, result.source)
         assertEquals(1, result.notices.size)
         assertEquals(1, result.candidatesFound)
@@ -42,24 +54,12 @@ class RemoteMatchRepositoryTest {
     }
 
     @Test
-    fun postToContractPathReturnsParsedMatches() = runBlocking {
-        var requestMethod = ""
-        val baseUrl = startServer(200, SAMPLE_RESPONSE) { requestMethod = it }
-        val repository = RemoteMatchRepository(baseUrl, Dispatchers.Unconfined)
-
-        val result = repository.getMatches("report-1").getOrThrow()
-
-        assertEquals("POST", requestMethod)
-        assertEquals(1, result.items.size)
-    }
-
-    @Test
     fun httpErrorSurfacesStatusAndErrorCode() = runBlocking {
         val baseUrl = startServer(
             429,
-            """{"success":false,"message":"Terlalu banyak","data":null,"error":{"code":"RATE_LIMITED"}}""",
+            """{"success":false,"message":"Terlalu banyak","error":{"code":"RATE_LIMITED","message":"Terlalu banyak"}}""",
         )
-        val repository = RemoteMatchRepository(baseUrl, Dispatchers.Unconfined)
+        val repository = RemoteMatchRepository(apiFor(baseUrl))
 
         val failure = repository.getMatches("report-1").exceptionOrNull()
 
@@ -69,23 +69,41 @@ class RemoteMatchRepositoryTest {
     }
 
     @Test
+    fun unsuccessfulEnvelopeIsReportedAsRejectedRequest() = runBlocking {
+        val baseUrl = startServer(200, """{"success":false,"message":"Laporan tidak aktif"}""")
+        val repository = RemoteMatchRepository(apiFor(baseUrl))
+
+        val failure = repository.getMatches("report-1").exceptionOrNull()
+
+        assertTrue(failure is MatchApiException)
+        assertEquals(422, (failure as MatchApiException).statusCode)
+    }
+
+    @Test
     fun malformedBodyIsReportedAsParseFailure() = runBlocking {
         val baseUrl = startServer(200, "not json")
-        val repository = RemoteMatchRepository(baseUrl, Dispatchers.Unconfined)
+        val repository = RemoteMatchRepository(apiFor(baseUrl))
 
         val failure = repository.getMatches("report-1").exceptionOrNull()
 
         assertTrue(failure is MatchParseException)
     }
 
+    private fun apiFor(baseUrl: String): TemuinApi =
+        Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(TemuinApi::class.java)
+
     private fun startServer(
         status: Int,
         body: String,
-        onRequest: (String) -> Unit = {},
+        onRequest: (com.sun.net.httpserver.HttpExchange) -> Unit = {},
     ): String {
         val httpServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         httpServer.createContext("/api/v1/reports/report-1/matches") { exchange ->
-            onRequest(exchange.requestMethod)
+            onRequest(exchange)
             val bytes = body.toByteArray()
             exchange.responseHeaders.add("Content-Type", "application/json")
             exchange.sendResponseHeaders(status, bytes.size.toLong())
@@ -93,7 +111,7 @@ class RemoteMatchRepositoryTest {
         }
         httpServer.start()
         server = httpServer
-        return "http://127.0.0.1:${httpServer.address.port}/api/v1"
+        return "http://127.0.0.1:${httpServer.address.port}/api/v1/"
     }
 
     private companion object {
