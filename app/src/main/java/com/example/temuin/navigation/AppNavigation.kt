@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,6 +46,8 @@ import com.example.temuin.ui.profile.ProfileScreen
 import com.example.temuin.ui.home.HomeViewModel
 import com.example.temuin.ui.inbox.InboxScreen
 import com.example.temuin.ui.inbox.InboxViewModel
+import com.example.temuin.ui.match.MatchRecommendationScreen
+import com.example.temuin.ui.match.MatchViewModel
 import com.example.temuin.ui.peta.PetaScreen
 import com.example.temuin.ui.peta.PetaViewModel
 import com.example.temuin.ui.report.LaporScreen
@@ -252,7 +256,47 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 }
                 ItemDetailScreen(
                     viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onFindMatches = {
+                        navController.navigate(
+                            Screen.MatchRecommendation.createRoute(viewModel.itemId)
+                        )
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.MatchRecommendation.route,
+                arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val reportId = backStackEntry.arguments?.getString("reportId").orEmpty()
+                val matchViewModel: MatchViewModel = viewModel(key = "matches:$reportId")
+
+                LaunchedEffect(reportId) {
+                    matchViewModel.loadMatches(reportId)
+                }
+
+                val uiState by matchViewModel.uiState.collectAsState()
+
+                MatchRecommendationScreen(
+                    uiState = uiState,
+                    onRetry = matchViewModel::retry,
+                    onManualSearch = {
+                        navController.navigate(Screen.Home.createRoute()) {
+                            popUpTo(Screen.Home.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                    onOpenReport = { id ->
+                        navController.navigate(Screen.ItemDetail.createRoute(id))
+                    },
+                    onLogin = {
+                        TokenStore.clear()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
