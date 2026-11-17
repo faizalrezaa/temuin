@@ -39,12 +39,11 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
 
     // Muat ulang setiap kali halaman dibuka (mis. setelah Edit Profil)
     LaunchedEffect(Unit) { viewModel.load() }
 
-    val laporan = if (selectedTab == 0) state.activeReports else state.doneReports
+    val laporan = state.reports
 
     Column(
         modifier = Modifier
@@ -88,40 +87,13 @@ fun ProfileScreen(
         Text("Laporan Saya", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         Spacer(Modifier.height(10.dp))
 
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(50))
-                .background(ProfileChipBg)
-                .padding(4.dp)
-        ) {
-            listOf(
-                "Aktif (${state.activeReports.size})",
-                "Selesai / Terambil (${state.doneReports.size})"
-            ).forEachIndexed { i, label ->
-                val sel = selectedTab == i
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (sel) ProfileOrange else Color.Transparent)
-                        .clickable { selectedTab = i }
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(label, fontSize = 14.sp, color = if (sel) Color.White else TextSecondary)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
         when {
             state.loading && laporan.isEmpty() -> Box(
                 Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator(color = ProfileOrange) }
 
             laporan.isEmpty() -> Text(
-                if (selectedTab == 0) "Belum ada laporan aktif." else "Belum ada laporan yang selesai.",
+                "Belum ada laporan.",
                 color = TextSecondary,
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
             )

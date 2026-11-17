@@ -20,8 +20,7 @@ data class ProfileUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val user: UserDto? = null,
-    val activeReports: List<ReportDto> = emptyList(),
-    val doneReports: List<ReportDto> = emptyList(),
+    val reports: List<ReportDto> = emptyList(),
 )
 
 class ProfileViewModel(
@@ -43,8 +42,7 @@ class ProfileViewModel(
                 it.copy(
                     loading = false,
                     user = userRes.getOrNull() ?: it.user,
-                    activeReports = all.filter { r -> r.status == "ACTIVE" },
-                    doneReports = all.filter { r -> r.status != "ACTIVE" },
+                    reports = all,
                     error = userRes.exceptionOrNull()?.message ?: reportsRes.exceptionOrNull()?.message,
                 )
             }

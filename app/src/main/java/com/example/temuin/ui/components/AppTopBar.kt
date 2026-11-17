@@ -14,15 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.example.temuin.data.source.fake.FakeItemRepository
+import com.example.temuin.ui.profile.ProfileAvatar
 import com.example.temuin.ui.theme.BackgroundLight
 import com.example.temuin.ui.theme.TextPrimary
 
 @Composable
 fun AppTopBar(
+    avatarUrl: String? = null,
     showBackButton: Boolean = false,
     onBackClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
@@ -56,15 +55,10 @@ fun AppTopBar(
                 }
             }
 
-            AsyncImage(
-                model = FakeItemRepository.PROFILE_AVATAR_URL,
-                contentDescription = "Foto profil",
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFF6F4F1))
-                    .clickable { onProfileClick() },
-                contentScale = ContentScale.Crop
+            ProfileAvatar(
+                size = 36.dp,
+                url = avatarUrl,
+                modifier = Modifier.clickable { onProfileClick() }
             )
         }
     }
