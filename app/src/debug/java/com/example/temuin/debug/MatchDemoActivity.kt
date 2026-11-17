@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
@@ -57,7 +58,8 @@ private fun MatchDemoContent() {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+        Text("Demo UI · data simulasi", modifier = Modifier.padding(horizontal = 12.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()

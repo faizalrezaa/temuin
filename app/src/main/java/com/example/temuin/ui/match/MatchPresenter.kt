@@ -22,6 +22,7 @@ object MatchPresenter {
             message = "Sesi kamu sudah berakhir. Silakan masuk kembali.",
             canRetry = false,
             showManualSearch = false,
+            requiresLogin = true,
         )
         httpStatus == 404 -> MatchFailure(
             message = "Laporan tidak ditemukan atau sudah dihapus.",

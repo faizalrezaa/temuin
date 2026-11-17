@@ -1,6 +1,9 @@
 package com.example.temuin.ui.match
 
 import com.example.temuin.data.match.MockMatchRepository
+import com.example.temuin.data.match.MatchRepository
+import com.example.temuin.data.match.MatchResult
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +11,59 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MatchViewModelTest {
+
+    @Test
+    fun newerRequestCancelsOldLoadAndKeepsNewResults() {
+        val oldResponse = CompletableDeferred<Result<MatchResult>>()
+        var oldCancelled = false
+        val repository = object : MatchRepository {
+            override suspend fun getMatches(reportId: String): Result<MatchResult> =
+                if (reportId == "old") {
+                    try {
+                        oldResponse.await()
+                    } finally {
+                        oldCancelled = true
+                    }
+                } else Result.success(MatchFixtures.ruleBased)
+        }
+        val vm = MatchViewModel(repository, Dispatchers.Unconfined)
+
+        vm.loadMatches("old")
+        vm.loadMatches("new")
+        oldResponse.complete(Result.success(MatchFixtures.aiSuccess))
+
+        assertTrue(oldCancelled)
+        assertEquals(MatchUiState.Success(MatchFixtures.ruleBased), vm.uiState.value)
+    }
+
+    @Test
+    fun invalidIdCancelsOldRequestAndClearsRetryTarget() {
+        val response = CompletableDeferred<Result<MatchResult>>()
+        var calls = 0
+        val repository = object : MatchRepository {
+            override suspend fun getMatches(reportId: String): Result<MatchResult> {
+                calls++
+                return response.await()
+            }
+        }
+        val vm = MatchViewModel(repository, Dispatchers.Unconfined)
+        vm.loadMatches("old")
+        vm.loadMatches("")
+        val invalid = vm.uiState.value
+        response.complete(Result.success(MatchFixtures.aiSuccess))
+        vm.retry()
+
+        assertEquals(invalid, vm.uiState.value)
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun expiredSessionOffersLoginInsteadOfRetry() {
+        val failure = MatchPresenter.failureFor(401)
+        assertTrue(failure.requiresLogin)
+        assertFalse(failure.canRetry)
+        assertFalse(failure.showManualSearch)
+    }
 
     @Test
     fun initialStateIsLoading() {

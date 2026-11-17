@@ -69,6 +69,8 @@ fun MatchRecommendationScreen(
     onRetry: () -> Unit = {},
     onManualSearch: () -> Unit = {},
     onBack: (() -> Unit)? = null,
+    onOpenReport: ((String) -> Unit)? = null,
+    onLogin: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -91,12 +93,14 @@ fun MatchRecommendationScreen(
                     failure = uiState.failure,
                     onRetry = onRetry,
                     onManualSearch = onManualSearch,
+                    onLogin = onLogin,
                 )
             }
 
             is MatchUiState.Success -> SuccessContent(
                 result = uiState.result,
                 modifier = Modifier.weight(1f),
+                onOpenReport = onOpenReport,
             )
         }
     }
@@ -139,7 +143,11 @@ private fun ScreenHeader(onBack: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun SuccessContent(result: MatchResult, modifier: Modifier = Modifier) {
+private fun SuccessContent(
+    result: MatchResult,
+    modifier: Modifier = Modifier,
+    onOpenReport: ((String) -> Unit)? = null,
+) {
     val banners = buildList {
         if (result.source == MatchSource.RULE_BASED && result.notices.isEmpty()) {
             add("AI tidak tersedia, jadi hasil ini disusun dari aturan. Tetap periksa manual.")
@@ -161,7 +169,7 @@ private fun SuccessContent(result: MatchResult, modifier: Modifier = Modifier) {
             }
         }
         items(result.items, key = { it.report.id }) { item ->
-            MatchItemCard(item)
+            MatchItemCard(item, onOpenReport)
         }
         item {
             DisclaimerCard()
@@ -191,7 +199,7 @@ private fun SummaryRow(result: MatchResult) {
 }
 
 @Composable
-private fun MatchItemCard(item: MatchItem) {
+private fun MatchItemCard(item: MatchItem, onOpenReport: ((String) -> Unit)?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -282,6 +290,12 @@ private fun MatchItemCard(item: MatchItem) {
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary,
                 )
+            }
+            if (onOpenReport != null) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = { onOpenReport(item.report.id) }) {
+                    Text("Lihat Laporan")
+                }
             }
         }
     }
@@ -459,6 +473,7 @@ private fun ErrorContent(
     failure: MatchFailure,
     onRetry: () -> Unit,
     onManualSearch: () -> Unit,
+    onLogin: (() -> Unit)?,
 ) {
     Icon(
         imageVector = Icons.Default.ErrorOutline,
@@ -477,6 +492,11 @@ private fun ErrorContent(
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
     )
+
+    if (failure.requiresLogin && onLogin != null) {
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onLogin) { Text("Masuk Kembali") }
+    }
 
     if (failure.canRetry) {
         Spacer(Modifier.height(16.dp))

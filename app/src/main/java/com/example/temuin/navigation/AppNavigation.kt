@@ -270,7 +270,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 arguments = listOf(navArgument("reportId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val reportId = backStackEntry.arguments?.getString("reportId").orEmpty()
-                val matchViewModel: MatchViewModel = viewModel()
+                val matchViewModel: MatchViewModel = viewModel(key = "matches:$reportId")
 
                 LaunchedEffect(reportId) {
                     matchViewModel.loadMatches(reportId)
@@ -287,7 +287,16 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                             launchSingleTop = true
                         }
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onOpenReport = { id ->
+                        navController.navigate(Screen.ItemDetail.createRoute(id))
+                    },
+                    onLogin = {
+                        TokenStore.clear()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 

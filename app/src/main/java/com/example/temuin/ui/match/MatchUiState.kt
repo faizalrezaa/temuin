@@ -13,4 +13,5 @@ data class MatchFailure(
     val message: String,
     val canRetry: Boolean,
     val showManualSearch: Boolean = true,
+    val requiresLogin: Boolean = false,
 )

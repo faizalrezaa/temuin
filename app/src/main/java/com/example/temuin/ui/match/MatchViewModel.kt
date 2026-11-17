@@ -8,6 +8,9 @@ import com.example.temuin.data.match.MatchRepository
 import com.example.temuin.data.match.RemoteMatchRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,8 +25,11 @@ class MatchViewModel(
     val uiState: StateFlow<MatchUiState> = _uiState.asStateFlow()
 
     private var lastReportId: String? = null
+    private var loadJob: Job? = null
 
     fun loadMatches(reportId: String) {
+        loadJob?.cancel()
+        lastReportId = null
         if (reportId.isBlank()) {
             _uiState.value = MatchUiState.Error(MatchPresenter.failureFor(400))
             return
@@ -32,8 +38,9 @@ class MatchViewModel(
         lastReportId = reportId
         _uiState.value = MatchUiState.Loading
 
-        viewModelScope.launch(dispatcher) {
+        loadJob = viewModelScope.launch(dispatcher) {
             val result = repository.getMatches(reportId)
+            currentCoroutineContext().ensureActive()
             result.fold(
                 onSuccess = { matchResult ->
                     _uiState.value = MatchPresenter.toUiState(matchResult)

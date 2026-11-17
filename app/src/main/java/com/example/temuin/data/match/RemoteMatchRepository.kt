@@ -55,6 +55,7 @@ class MatchParseException(cause: Throwable? = null) :
 
 private fun MatchResultDto.toDomain(): MatchResult {
     val mappedItems = items.orEmpty().mapNotNull { it.toDomainOrNull() }
+        .distinctBy { it.report.id }
     return MatchResult(
         source = when (source?.uppercase()) {
             "AI" -> MatchSource.AI
@@ -68,6 +69,7 @@ private fun MatchResultDto.toDomain(): MatchResult {
 
 private fun MatchItemDto.toDomainOrNull(): MatchItem? {
     val reportDto = report ?: return null
+    if (reportDto.id.isNullOrBlank() || reportDto.title.isNullOrBlank()) return null
     return MatchItem(
         report = reportDto.toDomain(),
         level = when (level?.uppercase()) {

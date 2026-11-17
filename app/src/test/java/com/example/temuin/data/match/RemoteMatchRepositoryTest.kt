@@ -1,6 +1,7 @@
 package com.example.temuin.data.match
 
 import com.example.temuin.data.remote.TemuinApi
+import com.google.gson.JsonParser
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -87,6 +88,28 @@ class RemoteMatchRepositoryTest {
         val failure = repository.getMatches("report-1").exceptionOrNull()
 
         assertTrue(failure is MatchParseException)
+    }
+
+    @Test
+    fun duplicateAndInvalidReportIdsCannotReachTheKeyedList() = runBlocking {
+        val envelope = JsonParser.parseString(SAMPLE_RESPONSE).asJsonObject
+        val items = envelope.getAsJsonObject("data").getAsJsonArray("items")
+        val original = items[0].deepCopy()
+        items.add(original.deepCopy())
+        val missingId = original.deepCopy().asJsonObject
+        missingId.getAsJsonObject("report").remove("id")
+        items.add(missingId)
+        val blankId = original.deepCopy().asJsonObject
+        blankId.getAsJsonObject("report").addProperty("id", " ")
+        items.add(blankId)
+        val missingTitle = original.deepCopy().asJsonObject
+        missingTitle.getAsJsonObject("report").remove("title")
+        items.add(missingTitle)
+        val repository = RemoteMatchRepository(apiFor(startServer(200, envelope.toString())))
+
+        val result = repository.getMatches("report-1").getOrThrow()
+
+        assertEquals(listOf("found-wallet-kantin"), result.items.map { it.report.id })
     }
 
     private fun apiFor(baseUrl: String): TemuinApi =
