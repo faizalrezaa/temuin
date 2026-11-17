@@ -3,6 +3,8 @@
 Updated: 2026-11-17
 Inspected baseline: `feat/fungsi-4-ui` at `032532e`. Review/fixes branch: `fix/match-review-demo`, based on that commit. Comparison base: fetched `origin/main` at `18eebb6`. Local `main` is older and must not be used as the comparison baseline.
 
+Review PR: https://github.com/faizalrezaa/temuin/pull/1 (base main, open). Fixes committed as `f704a6f`.
+
 Repository source and current check results take precedence over historical memory. These findings replace the 2026-11-16 inventory, which predates integration of the main branch.
 
 ## Architecture verified from source

@@ -8,6 +8,8 @@ User first requested repository inspection and STATE/HANDOFF updates without sou
 
 Working branch: `fix/match-review-demo`, based on OpenCode's `feat/fungsi-4-ui` at `032532e`. The matching integration is the scoped PR feature. The existing remote feed/auth/map/inbox/profile code comes from `origin/main` at `18eebb6`. Local `main` is stale. Do not force-push or overwrite the existing feature branch.
 
+PR: https://github.com/faizalrezaa/temuin/pull/1 (open, base main, reported mergeable). Fix commit: `f704a6f`. No merge was performed.
+
 ## Review changes
 
 - Make matching reachable from owned reports while retaining non-owner restrictions for claim/contact.
@@ -46,10 +48,12 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`. JVM results: `app/build/test-r
 
 See `docs/DEMO.md` for the short video/demo sequence, source walkthrough, and backend requirements. Android Studio was launched with this repository. Use Running Devices beside the editor. MainActivity shows the real application. Debug MatchDemoActivity shows simulated recommendation states without a backend.
 
-## Remaining verification
+The debug harness was installed and opened on emulator-5554. AI, rule-based and empty states were inspected. Separate raw screenshots are under `~/Pictures/temuin/review-20261117/`. These demonstrate fixture UI only. Direct device-test transcript is `/tmp/temuin-device-tests.log` (4 tests passed), JVM XML reports are in app/build/test-results/testDebugUnitTest. Gradle connected reports instead record the installer failure, not the successful direct run.
 
-- Create and verify the PR targeting main, record its URL here.
-- Demonstrate the fixture screen on the connected emulator. Live login/matching requires user authentication.
+## Remaining work
+
+- Review/merge PR #1 when ready. The PR records the lint crash and Gradle installer limitation.
+- Live login/matching demonstration requires user authentication and populated backend reports. Source callbacks and fixture UI are verified, authenticated server/Gemini behavior is not.
 
 ## Existing untracked guidance
 
