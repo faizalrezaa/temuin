@@ -206,3 +206,30 @@ data class MatchReportDto(
     @SerializedName("owner_name") val ownerName: String? = null,
     @SerializedName("photo_url") val photoUrl: String? = null,
 )
+
+data class HelpTopicDto(
+    val id: String,
+    val title: String,
+    val description: String,
+    val answer: String,
+)
+
+data class HelpChatTurnDto(val role: String, val content: String)
+data class HelpChatRequestDto(val message: String, val history: List<HelpChatTurnDto>)
+data class HelpReportReferenceDto(
+    val id: String,
+    val type: String,
+    val title: String,
+    val category: String,
+    val color: String? = null,
+    @SerializedName("location_name") val locationName: String,
+    @SerializedName("location_area") val locationArea: String? = null,
+    @SerializedName("photo_url") val photoUrl: String? = null,
+    @SerializedName("occurred_at") val occurredAt: String,
+)
+data class HelpChatReplyDto(
+    val reply: String,
+    val topic: String,
+    val source: String,
+    val reports: List<HelpReportReferenceDto>? = null,
+)

@@ -3,6 +3,11 @@ package com.example.temuin.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.SmartToy
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -28,6 +34,7 @@ import com.example.temuin.data.remote.NetworkModule
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.createSavedStateHandle
 import com.example.temuin.data.local.TokenStore
+import com.example.temuin.data.repository.ProfileRepository
 import com.example.temuin.data.source.remote.RemoteInboxRepository
 import com.example.temuin.data.source.remote.RemoteItemRepository
 import com.example.temuin.data.source.remote.RemoteLaporanRepository
@@ -39,6 +46,8 @@ import com.example.temuin.ui.auth.AuthViewModel
 import com.example.temuin.ui.auth.LoginScreen
 import com.example.temuin.ui.auth.SignupScreen
 import com.example.temuin.ui.components.AppTopBar
+import com.example.temuin.ui.help.HelpScreen
+import com.example.temuin.ui.help.HelpViewModel
 import com.example.temuin.ui.components.BottomNavigationBar
 import com.example.temuin.ui.home.HomeScreen
 import com.example.temuin.ui.profile.EditProfileScreen
@@ -52,6 +61,7 @@ import com.example.temuin.ui.peta.PetaScreen
 import com.example.temuin.ui.peta.PetaViewModel
 import com.example.temuin.ui.report.LaporScreen
 import com.example.temuin.ui.report.LaporViewModel
+import com.example.temuin.ui.theme.OrangePrimary
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
@@ -103,6 +113,21 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 )
             }
         },
+        floatingActionButton = {
+            if (currentRoute == Screen.Home.route) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.Help.route) },
+                    containerColor = OrangePrimary,
+                    contentColor = Color.White,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SmartToy,
+                        contentDescription = "Bantuan AI Temuin",
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
         bottomBar = {
             if (currentRoute in bottomBarRoutes) {
                 BottomNavigationBar(navController = navController)
@@ -244,6 +269,44 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable(Screen.Help.route) {
+                val helpViewModel: HelpViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            val profileRepository = ProfileRepository()
+                            return HelpViewModel(
+                                profileNameProvider = {
+                                    profileRepository.getMe().getOrNull()?.name
+                                }
+                            ) as T
+                        }
+                    }
+                )
+                HelpScreen(
+                    viewModel = helpViewModel,
+                    onBack = { navController.popBackStack() },
+                    onNavigate = { topic ->
+                        val destination = when (topic) {
+                            "REPORTING" -> Screen.Lapor.route
+                            "SEARCH" -> Screen.Home.createRoute()
+                            "MAP_CUSTODY" -> Screen.Peta.route
+                            "CLAIM_INBOX" -> Screen.Inbox.route
+                            else -> null
+                        }
+                        if (destination != null) {
+                            if (topic == "SEARCH" && navController.popBackStack(Screen.Home.route, false)) {
+                                return@HelpScreen
+                            }
+                            navController.navigate(destination) { launchSingleTop = true }
+                        }
+                    },
+                    onOpenReport = { id ->
+                        navController.navigate(Screen.ItemDetail.createRoute(id))
+                    },
                 )
             }
 
