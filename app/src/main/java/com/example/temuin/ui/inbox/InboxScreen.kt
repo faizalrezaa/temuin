@@ -15,15 +15,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.example.temuin.ui.components.ReportThumbnail
 import com.example.temuin.data.model.InboxFilter
 import com.example.temuin.data.model.InboxItem
 import com.example.temuin.data.model.StatusLaporanType
@@ -32,7 +30,6 @@ import com.example.temuin.ui.theme.*
 // ── Local design tokens ──────────────────────────────────────────────────────
 private val CardBorderColor   = Color(0xFFE1BFB4).copy(alpha = 0.5f)
 private val TabInactiveBg     = Color(0xFFF5ECE7)
-private val ThumbBg           = Color(0xFFF5ECE7)
 private val TipsBg            = Color(0xFFFBF2ED)
 private val TipsText          = Color(0xFF594139)
 
@@ -398,15 +395,7 @@ fun InboxCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun ItemThumbnail(url: String, title: String) {
-    AsyncImage(
-        model              = url,
-        contentDescription = title,
-        modifier           = Modifier
-            .size(80.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(ThumbBg),
-        contentScale       = ContentScale.Crop
-    )
+    ReportThumbnail(url = url, title = title, modifier = Modifier.size(80.dp))
 }
 
 @Composable

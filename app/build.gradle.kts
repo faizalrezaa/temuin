@@ -1,7 +1,17 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val productionApiUrl = "https://remissly-crumbier-michelle.ngrok-free.dev/api/v1/"
+val debugApiUrl = providers.gradleProperty("temuinDebugApiUrl").orElse(productionApiUrl).get()
+val debugApiUri = URI(debugApiUrl)
+require(debugApiUri.scheme in listOf("http", "https") && debugApiUri.host != null &&
+    debugApiUri.userInfo == null && debugApiUri.query == null && debugApiUri.fragment == null &&
+    debugApiUrl.endsWith("/api/v1/")
+) { "temuinDebugApiUrl must be an HTTP(S) URL ending in /api/v1/" }
 
 android {
     namespace = "com.example.temuin"
@@ -15,11 +25,15 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "API_BASE_URL", "\"$productionApiUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
+        }
         release {
             optimization {
                 enable = false
@@ -32,6 +46,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.temuin.data.remote
 
+import com.example.temuin.BuildConfig
 import com.example.temuin.data.local.TokenStore
 import com.google.gson.Gson
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -12,8 +13,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 object ApiConfig {
-    // Ganti ke "http://10.0.2.2:8080/api/v1/" kalau backend jalan lokal & pakai emulator.
-    const val BASE_URL = "https://remissly-crumbier-michelle.ngrok-free.dev/api/v1/"
+    const val BASE_URL = BuildConfig.API_BASE_URL
 }
 
 object ApiClient {
@@ -26,7 +26,7 @@ object ApiClient {
         OkHttpClient.Builder()
             .addInterceptor { chain ->
                 var url = chain.request().url
-                if (url.host in setOf("localhost", "127.0.0.1", "10.0.2.2") && url.host != base.host) {
+                if (url.host in setOf("localhost", "127.0.0.1", "10.0.2.2") && (url.host != base.host || url.port != base.port || url.scheme != base.scheme)) {
                     url = url.newBuilder().scheme(base.scheme).host(base.host).port(base.port).build()
                 }
                 chain.proceed(

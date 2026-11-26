@@ -3,13 +3,21 @@ package com.example.temuin.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.SmartToy
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -23,9 +31,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.temuin.data.local.TokenManager
 import com.example.temuin.data.remote.NetworkModule
-import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.createSavedStateHandle
 import com.example.temuin.data.local.TokenStore
+import com.example.temuin.data.repository.ProfileRepository
 import com.example.temuin.data.source.remote.RemoteAuthRepository
 import com.example.temuin.data.source.remote.RemoteInboxRepository
 import com.example.temuin.data.source.remote.RemoteItemRepository
@@ -33,12 +41,12 @@ import com.example.temuin.data.source.remote.RemoteLaporanRepository
 import com.example.temuin.data.source.remote.RemotePickupPointRepository
 import com.example.temuin.ui.detail.ItemDetailScreen
 import com.example.temuin.ui.detail.ItemDetailViewModel
-import androidx.compose.runtime.collectAsState
-import com.example.temuin.data.repository.ProfileRepository
 import com.example.temuin.ui.auth.AuthViewModel
 import com.example.temuin.ui.auth.LoginScreen
 import com.example.temuin.ui.auth.SignupScreen
 import com.example.temuin.ui.components.AppTopBar
+import com.example.temuin.ui.help.HelpScreen
+import com.example.temuin.ui.help.HelpViewModel
 import com.example.temuin.ui.components.BottomNavigationBar
 import com.example.temuin.ui.home.HomeScreen
 import com.example.temuin.ui.profile.EditProfileScreen
@@ -46,10 +54,13 @@ import com.example.temuin.ui.profile.ProfileScreen
 import com.example.temuin.ui.home.HomeViewModel
 import com.example.temuin.ui.inbox.InboxScreen
 import com.example.temuin.ui.inbox.InboxViewModel
+import com.example.temuin.ui.match.MatchRecommendationScreen
+import com.example.temuin.ui.match.MatchViewModel
 import com.example.temuin.ui.peta.PetaScreen
 import com.example.temuin.ui.peta.PetaViewModel
 import com.example.temuin.ui.report.LaporScreen
 import com.example.temuin.ui.report.LaporViewModel
+import com.example.temuin.ui.theme.OrangePrimary
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
@@ -110,6 +121,21 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 )
             }
         },
+        floatingActionButton = {
+            if (currentRoute == Screen.Home.route) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.Help.route) },
+                    containerColor = OrangePrimary,
+                    contentColor = Color.White,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SmartToy,
+                        contentDescription = "Bantuan AI Temuin",
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
         bottomBar = {
             if (currentRoute in bottomBarRoutes) {
                 BottomNavigationBar(navController = navController)
@@ -254,6 +280,44 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 )
             }
 
+            composable(Screen.Help.route) {
+                val helpViewModel: HelpViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return HelpViewModel(
+                                profileNameProvider = {
+                                    ProfileRepository.currentUser.value?.name
+                                        ?: profileRepository.getMe().getOrNull()?.name
+                                }
+                            ) as T
+                        }
+                    }
+                )
+                HelpScreen(
+                    viewModel = helpViewModel,
+                    onBack = { navController.popBackStack() },
+                    onNavigate = { topic ->
+                        val destination = when (topic) {
+                            "REPORTING" -> Screen.Lapor.route
+                            "SEARCH" -> Screen.Home.createRoute()
+                            "MAP_CUSTODY" -> Screen.Peta.route
+                            "CLAIM_INBOX" -> Screen.Inbox.route
+                            else -> null
+                        }
+                        if (destination != null) {
+                            if (topic == "SEARCH" && navController.popBackStack(Screen.Home.route, false)) {
+                                return@HelpScreen
+                            }
+                            navController.navigate(destination) { launchSingleTop = true }
+                        }
+                    },
+                    onOpenReport = { id ->
+                        navController.navigate(Screen.ItemDetail.createRoute(id))
+                    },
+                )
+            }
+
             composable(
                 route = Screen.ItemDetail.route,
                 arguments = listOf(navArgument("itemId") { type = NavType.StringType })
@@ -263,7 +327,47 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 }
                 ItemDetailScreen(
                     viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onFindMatches = {
+                        navController.navigate(
+                            Screen.MatchRecommendation.createRoute(viewModel.itemId)
+                        )
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.MatchRecommendation.route,
+                arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val reportId = backStackEntry.arguments?.getString("reportId").orEmpty()
+                val matchViewModel: MatchViewModel = viewModel(key = "matches:$reportId")
+
+                LaunchedEffect(reportId) {
+                    matchViewModel.loadMatches(reportId)
+                }
+
+                val uiState by matchViewModel.uiState.collectAsState()
+
+                MatchRecommendationScreen(
+                    uiState = uiState,
+                    onRetry = matchViewModel::retry,
+                    onManualSearch = {
+                        navController.navigate(Screen.Home.createRoute()) {
+                            popUpTo(Screen.Home.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                    onOpenReport = { id ->
+                        navController.navigate(Screen.ItemDetail.createRoute(id))
+                    },
+                    onLogin = {
+                        TokenStore.clear()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 

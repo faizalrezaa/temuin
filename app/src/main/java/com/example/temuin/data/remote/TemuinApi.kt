@@ -62,6 +62,18 @@ interface TemuinApi {
     @GET("reports/{id}/contact")
     suspend fun contact(@Path("id") id: String): ApiResponse<ContactDto>
 
+    @POST("reports/{id}/matches")
+    suspend fun matches(
+        @Path("id") id: String,
+        @Body body: Map<String, String> = emptyMap(),
+    ): ApiResponse<MatchResultDto>
+
+    @GET("help/topics")
+    suspend fun helpTopics(): ApiResponse<List<HelpTopicDto>>
+
+    @POST("help/chat")
+    suspend fun helpChat(@Body body: HelpChatRequestDto): ApiResponse<HelpChatReplyDto>
+
     // ---- Claims ----
     @POST("reports/{id}/claims")
     suspend fun submitClaim(@Path("id") reportId: String, @Body body: SubmitClaimRequest): ApiResponse<ClaimDto>

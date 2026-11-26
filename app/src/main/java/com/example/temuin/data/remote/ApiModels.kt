@@ -168,3 +168,68 @@ data class PickupSummaryDto(
 )
 
 data class CategoryDto(val code: String, val label: String)
+
+// ---- Match recommendations ----
+data class MatchResultDto(
+    val source: String? = null,
+    val notices: List<String>? = null,
+    @SerializedName("candidates_found") val candidatesFound: Int? = null,
+    val items: List<MatchItemDto>? = null,
+)
+
+data class MatchItemDto(
+    val report: MatchReportDto? = null,
+    val level: String? = null,
+    @SerializedName("matched_attributes") val matchedAttributes: List<String>? = null,
+    @SerializedName("different_attributes") val differentAttributes: List<String>? = null,
+    @SerializedName("not_comparable_attributes") val notComparableAttributes: List<String>? = null,
+    val reason: String? = null,
+    val explanation: MatchExplanationDto? = null,
+    @SerializedName("pre_score") val preScore: Double? = null,
+    @SerializedName("incomplete_data") val incompleteData: Boolean? = null,
+)
+
+data class MatchExplanationDto(
+    val similarities: List<String>? = null,
+    val differences: List<String>? = null,
+)
+
+data class MatchReportDto(
+    val id: String? = null,
+    val type: String? = null,
+    val title: String? = null,
+    val category: String? = null,
+    val color: String? = null,
+    val description: String? = null,
+    @SerializedName("occurred_at") val occurredAt: String? = null,
+    @SerializedName("location_name") val locationName: String? = null,
+    @SerializedName("owner_name") val ownerName: String? = null,
+    @SerializedName("photo_url") val photoUrl: String? = null,
+)
+
+data class HelpTopicDto(
+    val id: String,
+    val title: String,
+    val description: String,
+    val answer: String,
+)
+
+data class HelpChatTurnDto(val role: String, val content: String)
+data class HelpChatRequestDto(val message: String, val history: List<HelpChatTurnDto>)
+data class HelpReportReferenceDto(
+    val id: String,
+    val type: String,
+    val title: String,
+    val category: String,
+    val color: String? = null,
+    @SerializedName("location_name") val locationName: String,
+    @SerializedName("location_area") val locationArea: String? = null,
+    @SerializedName("photo_url") val photoUrl: String? = null,
+    @SerializedName("occurred_at") val occurredAt: String,
+)
+data class HelpChatReplyDto(
+    val reply: String,
+    val topic: String,
+    val source: String,
+    val reports: List<HelpReportReferenceDto>? = null,
+)
