@@ -8,7 +8,7 @@ import com.example.temuin.data.match.MatchResult
 import com.example.temuin.data.match.MatchSource
 
 /**
- * Demo data for Compose previews, the debug demo entry, and unit tests.
+ * Sample data for Compose previews and unit tests.
  * It mirrors the shape of a /reports/{id}/matches response and is not live server data.
  */
 object MatchFixtures {

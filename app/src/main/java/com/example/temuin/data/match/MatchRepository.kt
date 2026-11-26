@@ -20,7 +20,7 @@ interface MatchRepository {
 }
 
 /**
- * In-memory mock implementation of [MatchRepository] for development, demos, and testing.
+ * In-memory mock implementation of [MatchRepository] for local previews and tests.
  */
 class MockMatchRepository(
     var fixtureResult: MatchResult? = null,
