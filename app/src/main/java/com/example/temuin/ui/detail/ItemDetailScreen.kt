@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.HowToReg
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
@@ -33,6 +32,7 @@ import coil.compose.AsyncImage
 import com.example.temuin.data.model.Item
 import com.example.temuin.data.model.ItemStatus
 import com.example.temuin.ui.theme.*
+import com.example.temuin.ui.components.AppPageTopBar
 
 @Composable
 fun ItemDetailScreen(
@@ -147,30 +147,7 @@ fun ItemDetailContent(
     onFindMatches: () -> Unit
 ) {
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = item?.idLaporan ?: "Detail Laporan",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = TextPrimary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundLight
-                )
-            )
-        },
+        topBar = { AppPageTopBar(title = item?.idLaporan ?: "Detail Laporan", onBackClick = onBackClick) },
         bottomBar = {
             if (item != null) {
                 Surface(

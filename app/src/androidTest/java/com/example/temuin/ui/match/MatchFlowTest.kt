@@ -2,8 +2,6 @@ package com.example.temuin.ui.match
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -52,7 +50,7 @@ class MatchFlowTest {
                 )
             }
         }
-        compose.onAllNodesWithText("Lihat Laporan").onFirst().performScrollTo().performClick()
+        compose.onNodeWithText(result.items.first().report.title).performScrollTo().performClick()
         compose.runOnIdle { assertEquals(result.items.first().report.id, selectedId) }
     }
 

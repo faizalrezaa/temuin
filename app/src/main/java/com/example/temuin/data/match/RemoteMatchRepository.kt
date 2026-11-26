@@ -81,6 +81,12 @@ private fun MatchItemDto.toDomainOrNull(): MatchItem? {
         differentAttributes = differentAttributes.toAttributes(),
         notComparableAttributes = notComparableAttributes.toAttributes(),
         reason = reason.orEmpty(),
+        explanation = explanation?.let { dto ->
+            val similarities = dto.similarities.orEmpty().filter { it.isNotBlank() }
+            val differences = dto.differences.orEmpty().filter { it.isNotBlank() }
+            if (similarities.isEmpty() && differences.isEmpty()) null
+            else MatchExplanation(similarities, differences)
+        },
         incompleteData = incompleteData ?: false,
     )
 }
@@ -94,6 +100,8 @@ private fun MatchReportDto.toDomain() = MatchReport(
     occurredAt = occurredAt.orEmpty(),
     locationName = locationName.orEmpty(),
     ownerName = ownerName?.takeIf { it.isNotBlank() },
+    type = type?.takeIf { it.isNotBlank() },
+    photoUrl = photoUrl?.takeIf { it.isNotBlank() },
 )
 
 private fun List<String>?.toAttributes(): List<MatchAttribute> = orEmpty().mapNotNull { raw ->

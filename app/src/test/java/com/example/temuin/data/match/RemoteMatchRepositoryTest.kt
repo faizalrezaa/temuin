@@ -43,7 +43,11 @@ class RemoteMatchRepositoryTest {
 
         val item = result.items.single()
         assertEquals(MatchLevel.HIGH, item.level)
+        assertEquals(listOf("Warna sama."), item.explanation?.similarities)
+        assertEquals(listOf("Waktu berbeda."), item.explanation?.differences)
         assertEquals("Dompet kulit hitam", item.report.title)
+        assertEquals("FOUND", item.report.type)
+        assertEquals("http://localhost:8080/uploads/reports/wallet.jpg", item.report.photoUrl)
         assertEquals("Kantin FILKOM", item.report.locationName)
         assertEquals("Raka", item.report.ownerName)
         assertEquals(
@@ -150,15 +154,21 @@ class RemoteMatchRepositoryTest {
                   {
                     "report": {
                       "id": "found-wallet-kantin",
+                      "type": "FOUND",
                       "title": "Dompet kulit hitam",
                       "category": "WALLET",
                       "color": "Hitam",
                       "description": "Ditemukan di meja kantin.",
                       "occurred_at": "2026-11-16T05:00:00Z",
                       "location_name": "Kantin FILKOM",
+                      "photo_url": "http://localhost:8080/uploads/reports/wallet.jpg",
                       "owner_name": "Raka"
                     },
                     "level": "HIGH",
+                    "explanation": {
+                      "similarities": ["Warna sama."],
+                      "differences": ["Waktu berbeda."]
+                    },
                     "matched_attributes": ["CATEGORY", "COLOR"],
                     "different_attributes": [],
                     "not_comparable_attributes": ["PHOTO"],

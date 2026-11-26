@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
@@ -27,11 +27,13 @@ import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,12 +43,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.example.temuin.data.match.MatchAttribute
+import com.example.temuin.data.match.MatchExplanation
 import com.example.temuin.data.match.MatchItem
 import com.example.temuin.data.match.MatchLevel
 import com.example.temuin.data.match.MatchResult
 import com.example.temuin.data.match.MatchSource
 import com.example.temuin.ui.theme.CardBackground
+import com.example.temuin.ui.theme.BorderColor
 import com.example.temuin.ui.theme.OrangeLight
 import com.example.temuin.ui.theme.OrangePrimary
 import com.example.temuin.ui.theme.OrangePrimaryVariant
@@ -57,6 +65,11 @@ import com.example.temuin.ui.theme.TagTemuanText
 import com.example.temuin.ui.theme.TemuinTheme
 import com.example.temuin.ui.theme.TextPrimary
 import com.example.temuin.ui.theme.TextSecondary
+import com.example.temuin.ui.components.AppPageTopBar
+import com.example.temuin.ui.components.ReportThumbnail
+import com.example.temuin.ui.components.TemuinReportCard
+import com.example.temuin.ui.home.StatusTag
+import com.example.temuin.data.model.ItemStatus
 
 /**
  * Stateless recommendation screen for Fungsi 4.
@@ -77,7 +90,12 @@ fun MatchRecommendationScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        ScreenHeader(onBack = onBack)
+        AppPageTopBar(title = "Cari Kecocokan", onBackClick = { onBack?.invoke() })
+        Text(
+            text = "Kandidat laporan yang mungkin cocok dengan laporanmu.",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+        )
 
         when (uiState) {
             MatchUiState.Loading -> CenteredState(Modifier.weight(1f)) {
@@ -107,42 +125,6 @@ fun MatchRecommendationScreen(
 }
 
 @Composable
-private fun ScreenHeader(onBack: (() -> Unit)? = null) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                start = if (onBack != null) 8.dp else 20.dp,
-                end = 20.dp,
-                top = if (onBack != null) 12.dp else 20.dp,
-                bottom = 8.dp,
-            ),
-    ) {
-        if (onBack != null) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Kembali",
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.padding(start = if (onBack != null) 12.dp else 0.dp),
-        ) {
-            Text(
-                text = "Cari Kecocokan",
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Kandidat laporan yang mungkin cocok dengan laporanmu.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
 private fun SuccessContent(
     result: MatchResult,
     modifier: Modifier = Modifier,
@@ -157,7 +139,7 @@ private fun SuccessContent(
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -169,7 +151,7 @@ private fun SuccessContent(
             }
         }
         items(result.items, key = { it.report.id }) { item ->
-            MatchItemCard(item, onOpenReport)
+            MatchItemCard(item, result.source == MatchSource.AI, onOpenReport)
         }
         item {
             DisclaimerCard()
@@ -199,21 +181,36 @@ private fun SummaryRow(result: MatchResult) {
 }
 
 @Composable
-private fun MatchItemCard(item: MatchItem, onOpenReport: ((String) -> Unit)?) {
-    Surface(
+private fun MatchItemCard(
+    item: MatchItem,
+    showAIExplanation: Boolean,
+    onOpenReport: ((String) -> Unit)?,
+) {
+    var expanded by remember(item.report.id) { mutableStateOf(false) }
+    TemuinReportCard(
+        onClick = { onOpenReport?.invoke(item.report.id) },
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 1.dp,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ReportThumbnail(
+                    url = item.report.photoUrl,
+                    title = item.report.title,
+                    modifier = Modifier.size(width = 104.dp, height = 116.dp),
+                )
                 Column(modifier = Modifier.weight(1f)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (item.report.type.equals("LOST", ignoreCase = true)) StatusTag(ItemStatus.DICARI)
+                        else if (item.report.type.equals("FOUND", ignoreCase = true)) StatusTag(ItemStatus.DITEMUKAN)
+                        LevelPill(item.level)
+                    }
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         text = item.report.title,
                         style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = buildString {
                             append(MatchPresenter.categoryLabel(item.report.category))
@@ -223,11 +220,9 @@ private fun MatchItemCard(item: MatchItem, onOpenReport: ((String) -> Unit)?) {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                Spacer(Modifier.width(8.dp))
-                LevelPill(item.level)
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = "${item.report.locationName} · " +
                     MatchPresenter.formatOccurredAt(item.report.occurredAt),
@@ -255,6 +250,12 @@ private fun MatchItemCard(item: MatchItem, onOpenReport: ((String) -> Unit)?) {
                 )
             }
 
+            if (showAIExplanation) {
+                item.explanation?.let { explanation ->
+                    AIExplanationCard(explanation)
+                }
+            }
+
             if (item.incompleteData) {
                 Spacer(Modifier.height(10.dp))
                 Pill(
@@ -264,24 +265,15 @@ private fun MatchItemCard(item: MatchItem, onOpenReport: ((String) -> Unit)?) {
                 )
             }
 
-            AttributeGroup(
-                title = "Cocok",
-                attributes = item.matchedAttributes,
-                foreground = TagTemuanText,
-                background = TagTemuanBg,
-            )
-            AttributeGroup(
-                title = "Berbeda",
-                attributes = item.differentAttributes,
-                foreground = TagHilangText,
-                background = TagHilangBg,
-            )
-            AttributeGroup(
-                title = "Tidak bisa dibandingkan",
-                attributes = item.notComparableAttributes,
-                foreground = TextSecondary,
-                background = CardBackground,
-            )
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(if (expanded) "Sembunyikan rincian" else "Rincian kecocokan")
+                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+            }
+            if (expanded) {
+                AttributeGroup("Cocok", item.matchedAttributes, TagTemuanText, TagTemuanBg)
+                AttributeGroup("Berbeda", item.differentAttributes, TagHilangText, TagHilangBg)
+                AttributeGroup("Belum bisa dibandingkan", item.notComparableAttributes, TextSecondary, CardBackground)
+            }
 
             if (!item.report.ownerName.isNullOrBlank()) {
                 Spacer(Modifier.height(10.dp))
@@ -291,10 +283,76 @@ private fun MatchItemCard(item: MatchItem, onOpenReport: ((String) -> Unit)?) {
                     color = TextSecondary,
                 )
             }
-            if (onOpenReport != null) {
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = { onOpenReport(item.report.id) }) {
-                    Text("Lihat Laporan")
+            Text("Ketuk untuk melihat laporan", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        }
+    }
+}
+
+@Composable
+private fun AIExplanationCard(explanation: MatchExplanation) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = CardBackground,
+        border = BorderStroke(1.dp, BorderColor),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Penjelasan AI:",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary,
+            )
+            ExplanationPoints(
+                title = "Kesamaan",
+                points = explanation.similarities,
+                accent = TagTemuanText,
+                emptyText = "Belum ada kesamaan yang bisa dipastikan dari data.",
+            )
+            ExplanationPoints(
+                title = "Perbedaan",
+                points = explanation.differences,
+                accent = TagHilangText,
+                emptyText = "Tidak ada perbedaan yang jelas dari data yang tersedia.",
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExplanationPoints(
+    title: String,
+    points: List<String>,
+    accent: Color,
+    emptyText: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = accent,
+        )
+        if (points.isEmpty()) {
+            Text(emptyText, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+        } else {
+            points.forEach { point ->
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    Text("•", style = MaterialTheme.typography.bodyMedium, color = accent)
+                    Text(
+                        text = point,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPrimary,
+                    )
                 }
             }
         }

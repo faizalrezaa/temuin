@@ -32,6 +32,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.temuin.ui.components.ReportThumbnail
+import com.example.temuin.ui.components.TemuinReportCard
 import com.example.temuin.data.model.Item
 import com.example.temuin.data.model.ItemStatus
 import com.example.temuin.data.source.fake.FakeItemRepository
@@ -452,18 +454,10 @@ fun ItemCard(
     item: Item,
     onClick: () -> Unit
 ) {
-    Card(
+    TemuinReportCard(
+        onClick = onClick,
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        border = BorderStroke(1.dp, CardBorder),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
+            .fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -471,14 +465,10 @@ fun ItemCard(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            AsyncImage(
-                model = item.imageUrl,
-                contentDescription = item.title,
-                modifier = Modifier
-                    .size(width = 104.dp, height = 116.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(SoftBackground),
-                contentScale = ContentScale.Crop
+            ReportThumbnail(
+                url = item.imageUrl,
+                title = item.title,
+                modifier = Modifier.size(width = 104.dp, height = 116.dp),
             )
 
             Column(
