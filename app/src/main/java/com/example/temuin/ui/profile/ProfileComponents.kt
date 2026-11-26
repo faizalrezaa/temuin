@@ -29,10 +29,11 @@ val ProfileDangerBg = Color(0xFFFFDAD6)
 @Composable
 fun ProfileAvatar(size: Dp, url: String?, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
+        modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .background(Color(0xFFE8D5CC)),
+            .background(Color(0xFFE8D5CC))
+            .then(modifier),
         contentAlignment = Alignment.Center
     ) {
         Icon(

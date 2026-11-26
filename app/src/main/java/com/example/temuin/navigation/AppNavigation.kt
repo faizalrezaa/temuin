@@ -31,17 +31,16 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.temuin.data.local.TokenManager
 import com.example.temuin.data.remote.NetworkModule
-import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.createSavedStateHandle
 import com.example.temuin.data.local.TokenStore
 import com.example.temuin.data.repository.ProfileRepository
+import com.example.temuin.data.source.remote.RemoteAuthRepository
 import com.example.temuin.data.source.remote.RemoteInboxRepository
 import com.example.temuin.data.source.remote.RemoteItemRepository
 import com.example.temuin.data.source.remote.RemoteLaporanRepository
 import com.example.temuin.data.source.remote.RemotePickupPointRepository
 import com.example.temuin.ui.detail.ItemDetailScreen
 import com.example.temuin.ui.detail.ItemDetailViewModel
-import com.example.temuin.data.source.remote.RemoteAuthRepository
 import com.example.temuin.ui.auth.AuthViewModel
 import com.example.temuin.ui.auth.LoginScreen
 import com.example.temuin.ui.auth.SignupScreen
@@ -68,6 +67,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    val currentUser by ProfileRepository.currentUser.collectAsState()
+    val profileRepository = remember { ProfileRepository() }
+
+    LaunchedEffect(currentRoute) {
+        if (TokenStore.token != null) {
+            profileRepository.getMe()
+        }
+    }
+
     // ── AuthViewModel dibuat sekali dan dishare antara Login & Signup ──────────
     val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel(
@@ -90,7 +98,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
     val topBarRoutes = listOf(
         Screen.Home.route,
-        Screen.Peta.route,
         Screen.Lapor.route,
         Screen.Inbox.route
     )
@@ -99,6 +106,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         topBar = {
             if (currentRoute in topBarRoutes) {
                 AppTopBar(
+                    avatarUrl = currentUser?.avatarUrl,
                     showBackButton = currentRoute == Screen.Lapor.route,
                     onBackClick = { navController.navigateUp() },
                     onProfileClick = {
@@ -277,10 +285,10 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     factory = object : ViewModelProvider.Factory {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            val profileRepository = ProfileRepository()
                             return HelpViewModel(
                                 profileNameProvider = {
-                                    profileRepository.getMe().getOrNull()?.name
+                                    ProfileRepository.currentUser.value?.name
+                                        ?: profileRepository.getMe().getOrNull()?.name
                                 }
                             ) as T
                         }

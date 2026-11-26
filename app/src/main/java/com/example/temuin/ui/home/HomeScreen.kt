@@ -36,7 +36,7 @@ import com.example.temuin.ui.components.ReportThumbnail
 import com.example.temuin.ui.components.TemuinReportCard
 import com.example.temuin.data.model.Item
 import com.example.temuin.data.model.ItemStatus
-import com.example.temuin.data.source.fake.FakeItemRepository
+import com.example.temuin.ui.profile.ProfileAvatar
 import com.example.temuin.ui.theme.*
 
 private val CardBorder = Color(0xFFF0ECE8)
@@ -186,7 +186,7 @@ fun HomeContent(
 }
 
 @Composable
-fun HomeTopBar() {
+fun HomeTopBar(avatarUrl: String? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -194,14 +194,9 @@ fun HomeTopBar() {
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = FakeItemRepository.PROFILE_AVATAR_URL,
-            contentDescription = "Foto profil",
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(SoftBackground),
-            contentScale = ContentScale.Crop
+        ProfileAvatar(
+            size = 36.dp,
+            url = avatarUrl
         )
     }
 }
